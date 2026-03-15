@@ -154,6 +154,7 @@ function checkPrizes(){
         gameState.globalClaimed[prize.key]  = { playerName, ticketNum }
         gameState.globalClaimed[claimKey]   = { playerName, ticketNum }
         console.log("✅", prize.label, "→", playerName, "Ticket #"+ticketNum)
+        saveState()
         io.emit("prizeClaimed", { ticketNum, playerName, prize: prize.label, prizeKey: prize.key })
       }
     })
@@ -215,6 +216,9 @@ let gameState = {
   globalClaimed: {}
 }
 
+// Load saved state on startup
+loadState()
+
 /* ── SOCKET ── */
 io.on("connection", (socket) => {
   console.log("Connected:", socket.id)
@@ -251,6 +255,7 @@ io.on("connection", (socket) => {
       startTime: null, activePrizes: [], globalClaimed: {}
     }
     console.log("Game ready:", count, "tickets")
+    saveState()
     io.emit("gameStarted", {
       totalTickets:  gameState.totalTickets,
       sheets:        gameState.sheets,
@@ -265,6 +270,7 @@ io.on("connection", (socket) => {
     gameState.startTime    = Date.now() + (startDelay * 1000)
     gameState.activePrizes = activePrizes && activePrizes.length > 0 ? activePrizes : []
     console.log("🚀 Game starts in", startDelay, "s | Active prizes:", gameState.activePrizes)
+    saveState()
     io.emit("gameCountdown", { startTime: gameState.startTime, activePrizes: gameState.activePrizes })
     // Check prizes immediately in case tickets already booked + numbers already called
     checkPrizes()
@@ -293,6 +299,7 @@ io.on("connection", (socket) => {
     gameState.bookedTickets[ticketNum] = hold.playerName
     delete gameState.onHoldTickets[ticketNum]
     console.log("✅ Ticket #"+ticketNum+" confirmed for", hold.playerName)
+    saveState()
     console.log("   Total booked now:", Object.keys(gameState.bookedTickets).length)
     io.emit("ticketBooked", { ticketNum, playerName: hold.playerName })
     io.emit("holdRemoved", ticketNum)
@@ -319,6 +326,7 @@ io.on("connection", (socket) => {
       gameState.activePrizes = activePrizes
     }
     io.emit("numberCalled", number)
+    saveState()
     console.log("📣 Number:", number, "| Booked:", Object.keys(gameState.bookedTickets), "| Active:", gameState.activePrizes)
     checkPrizes()
   })
@@ -338,6 +346,7 @@ io.on("connection", (socket) => {
       bookedTickets: {}, onHoldTickets: {}, calledNumbers: [],
       startTime: null, activePrizes: [], globalClaimed: {}
     }
+    try { fs.unlinkSync(STATE_FILE) } catch(e){}
     io.emit("resetGame")
   })
 
