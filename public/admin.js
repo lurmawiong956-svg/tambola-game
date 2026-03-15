@@ -1,5 +1,6 @@
 /* ── LOGIN ── */
-let pendingRestore = null  // store gameStarted data received before login
+let pendingRestore = null
+let isLoggedIn     = false
 
 function doLogin(){
   const user = document.getElementById("loginUser").value.trim()
@@ -9,8 +10,8 @@ function doLogin(){
   if(user === "warbah13" && pass === "Lur@12345"){
     document.getElementById("loginScreen").style.display = "none"
     document.getElementById("adminApp").style.display    = "block"
+    isLoggedIn = true
     err.innerText = ""
-    // Apply any restore data that arrived before login
     if(pendingRestore){ restoreAdminState(pendingRestore); pendingRestore = null }
   } else {
     err.innerText = "❌ Invalid username or password"
@@ -375,7 +376,6 @@ socket.on("numberCalled", (number) => {
   const box = document.getElementById("b"+num); if(box) box.classList.add("called")
 })
 socket.on("gameStarted", (data) => {
-  const isLoggedIn = document.getElementById("adminApp").style.display !== "none"
   if(!isLoggedIn){
     pendingRestore = data  // save for after login
     return
@@ -390,25 +390,37 @@ function restoreAdminState(data){
   if(bookedTickets) Object.entries(bookedTickets).forEach(([n,name])=>{confirmedBookings[n]=name})
 
   if(totalTickets > 0){
-    document.getElementById("setupSection").style.display   = "none"
-    document.getElementById("gameSection").style.display    = "block"
-    document.getElementById("timingSetup").style.display    = "none"
-    document.getElementById("resetBtnPre").style.display    = "none"
-    document.getElementById("gameControls").style.display   = "block"
-    document.getElementById("activePrizeSection").style.display = (ap && ap.length) ? "block" : "none"
-    document.getElementById("gameInfo").innerText  = totalTickets + " tickets — game running"
-    document.getElementById("ticketCount").value   = totalTickets
+    document.getElementById("setupSection").style.display = "none"
+    document.getElementById("gameSection").style.display  = "block"
+    document.getElementById("ticketCount").value          = totalTickets
 
-    createBoard()
-    if(calledNumbers && calledNumbers.length > 0){
+    const gameIsLive = calledNumbers && calledNumbers.length > 0
+
+    if(gameIsLive){
+      // Game is running — show controls, hide setup
+      document.getElementById("timingSetup").style.display    = "none"
+      document.getElementById("resetBtnPre").style.display    = "none"
+      document.getElementById("gameControls").style.display   = "block"
+      document.getElementById("activePrizeSection").style.display = (ap && ap.length) ? "block" : "none"
+      document.getElementById("gameInfo").innerText = totalTickets + " tickets — game running"
+      createBoard()
       calledNumbers.forEach(n => {
         const idx = numbers.indexOf(n); if(idx > -1) numbers.splice(idx, 1)
         const box = document.getElementById("b"+n); if(box) box.classList.add("called")
       })
       document.getElementById("currentNumber").innerText = calledNumbers[calledNumbers.length-1]
+      if(ap && ap.length) renderGamePrizeToggles(ap)
+      updateAutoStatus()
+    } else {
+      // Tickets ready but game not started yet — show timing setup
+      document.getElementById("timingSetup").style.display  = "block"
+      document.getElementById("resetBtnPre").style.display  = "block"
+      document.getElementById("gameControls").style.display = "none"
+      document.getElementById("activePrizeSection").style.display = "none"
+      document.getElementById("gameInfo").innerText = totalTickets + " tickets sent — set timing and start game"
+      createBoard()
+      renderPrizeCheckboxes()
     }
-    if(ap && ap.length) renderGamePrizeToggles(ap)
-    updateAutoStatus()
   }
   renderHoldTable(); renderBookedTable()
 }
