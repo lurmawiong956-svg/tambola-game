@@ -1,0 +1,505 @@
+@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&display=swap');
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+body{
+  font-family: 'Poppins', Arial, sans-serif;
+  background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
+  min-height: 100vh;
+  text-align: center;
+  padding: 24px 16px;
+  color: #fff;
+}
+
+h1{
+  font-size: 32px;
+  font-weight: 700;
+  letter-spacing: 2px;
+  color: #fff;
+  text-shadow: 0 0 20px rgba(255,200,0,0.5);
+  margin-bottom: 8px;
+}
+
+h2{
+  font-size: 18px;
+  font-weight: 600;
+  color: #e0e0e0;
+  margin: 20px 0 10px;
+  letter-spacing: 1px;
+}
+
+/* ── CURRENT NUMBER ── */
+.current-number-box{
+  background: linear-gradient(135deg, #e53935, #b71c1c);
+  display: block;
+  width: fit-content;
+  margin: 8px auto 20px;
+  padding: 10px 40px;
+  border-radius: 16px;
+  box-shadow: 0 4px 20px rgba(229,57,53,0.5);
+  text-align: center;
+}
+
+.current-number-box h2{
+  font-size: 14px;
+  color: rgba(255,255,255,0.8);
+  margin: 0 0 2px;
+}
+
+#currentNumber{
+  font-size: 56px;
+  font-weight: 700;
+  color: #fff;
+  line-height: 1;
+}
+
+/* ── WAIT MESSAGE ── */
+#waitMsg{
+  padding: 40px 30px;
+  color: rgba(255,255,255,0.6);
+  font-size: 18px;
+  background: rgba(255,255,255,0.05);
+  border: 1px solid rgba(255,255,255,0.1);
+  border-radius: 16px;
+  display: block;
+  margin: 30px auto;
+  max-width: 400px;
+  backdrop-filter: blur(10px);
+}
+
+/* ── TICKET INFO ── */
+#ticketInfo{
+  color: rgba(255,255,255,0.6);
+  font-size: 13px;
+  margin-bottom: 16px;
+}
+
+/* ── SHEET CONTAINER ── */
+#ticketList{
+  max-width: 560px;
+  margin: 0 auto;
+}
+
+.sheetBlock{
+  background: rgba(255,255,255,0.05);
+  border: 1px solid rgba(255,255,255,0.1);
+  border-radius: 14px;
+  padding: 14px 16px;
+  margin-bottom: 12px;
+  backdrop-filter: blur(6px);
+}
+
+.sheetLabel{
+  font-size: 11px;
+  font-weight: 600;
+  color: rgba(255,255,255,0.4);
+  text-transform: uppercase;
+  letter-spacing: 2px;
+  text-align: left;
+  margin-bottom: 10px;
+}
+
+.sheetRow{
+  display: flex;
+  gap: 8px;
+  justify-content: center;
+}
+
+/* ── TICKET BUTTONS ── */
+.ticketButton{
+  width: 52px;
+  height: 52px;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  font-size: 15px;
+  cursor: pointer;
+  transition: all 0.2s;
+  background: linear-gradient(135deg, #1976d2, #0d47a1);
+  color: white;
+  box-shadow: 0 3px 8px rgba(0,0,0,0.3);
+  border: 2px solid transparent;
+}
+
+.ticketButton:hover{
+  transform: translateY(-3px) scale(1.08);
+  box-shadow: 0 6px 16px rgba(25,118,210,0.5);
+  border-color: rgba(255,255,255,0.3);
+}
+
+.ticketButton.selected{
+  background: linear-gradient(135deg, #43a047, #2e7d32);
+  box-shadow: 0 3px 12px rgba(67,160,71,0.6);
+  border-color: #a5d6a7;
+  transform: translateY(-2px);
+}
+
+.ticketButton.previewing{
+  background: linear-gradient(135deg, #fb8c00, #e65100);
+  box-shadow: 0 3px 12px rgba(251,140,0,0.6);
+  border-color: #ffcc80;
+  transform: translateY(-2px);
+}
+
+.ticketButton.mybooked{
+  background: linear-gradient(135deg, #00acc1, #006064);
+  box-shadow: 0 3px 12px rgba(0,172,193,0.5);
+  border-color: #80deea;
+  cursor: pointer;
+}
+
+.ticketButton.booked{
+  background: rgba(255,255,255,0.08);
+  color: rgba(255,255,255,0.3);
+  cursor: not-allowed;
+  box-shadow: none;
+  border-color: transparent;
+}
+
+.ticketButton.booked:hover{
+  transform: none;
+  box-shadow: none;
+}
+
+/* ── BOOKING FORM ── */
+#bookingForm{
+  background: rgba(255,255,255,0.06);
+  border: 1px solid rgba(255,255,255,0.12);
+  border-radius: 14px;
+  padding: 16px 20px;
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  justify-content: center;
+  margin: 12px auto;
+  backdrop-filter: blur(6px);
+}
+
+input[type="text"]{
+  padding: 10px 16px;
+  font-size: 14px;
+  border: 1px solid rgba(255,255,255,0.2);
+  border-radius: 10px;
+  background: rgba(255,255,255,0.1);
+  color: #fff;
+  width: 200px;
+  outline: none;
+  font-family: 'Poppins', sans-serif;
+}
+
+input[type="text"]::placeholder{ color: rgba(255,255,255,0.4); }
+input[type="text"]:focus{ border-color: #42a5f5; background: rgba(255,255,255,0.15); }
+
+/* ── BUTTONS ── */
+button{
+  padding: 10px 20px;
+  font-size: 14px;
+  font-weight: 600;
+  border: none;
+  border-radius: 10px;
+  background: linear-gradient(135deg, #1976d2, #0d47a1);
+  color: white;
+  cursor: pointer;
+  margin: 4px;
+  font-family: 'Poppins', sans-serif;
+  transition: all 0.2s;
+  box-shadow: 0 3px 8px rgba(0,0,0,0.3);
+}
+
+button:hover{
+  transform: translateY(-2px);
+  box-shadow: 0 5px 14px rgba(0,0,0,0.4);
+}
+
+.changeBtn{
+  background: rgba(255,255,255,0.1);
+  color: rgba(255,255,255,0.7);
+  box-shadow: none;
+}
+
+.changeBtn:hover{
+  background: rgba(255,255,255,0.18);
+  box-shadow: none;
+}
+
+/* ── DIVIDER ── */
+hr{
+  border: none;
+  border-top: 1px solid rgba(255,255,255,0.1);
+  margin: 24px auto;
+  max-width: 600px;
+}
+
+/* ── TICKET PREVIEW AREA ── */
+#ticketPreviewArea p{
+  color: rgba(255,255,255,0.4);
+  font-size: 14px;
+  padding: 20px;
+}
+
+/* ── TICKET CARD ── */
+.ticketCard{
+  background: white;
+  padding: 20px;
+  border-radius: 16px;
+  display: inline-block;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.4);
+  margin: 8px auto;
+}
+
+/* ── TICKET HEADER ── */
+.ticket-header{
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 10px;
+  padding: 8px 12px;
+  background: linear-gradient(135deg, #1976d2, #0d47a1);
+  border-radius: 8px;
+  color: white;
+}
+
+.ticket-label{ font-size: 14px; font-weight: 600; color: white; }
+.ticket-name{ font-size: 14px; font-weight: 700; color: #ffeb3b; }
+
+/* ── TICKET GRID ── */
+.ticket{
+  display: grid;
+  grid-template-columns: repeat(9, 50px);
+  gap: 5px;
+  justify-content: center;
+  margin: 10px auto;
+}
+
+.cell{
+  width: 50px;
+  height: 50px;
+  border-radius: 8px;
+  border: 1px solid #e0e0e0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  font-size: 15px;
+  background: #f8f9fa;
+  color: #1a1a2e;
+  transition: all 0.3s;
+}
+
+.cell.marked{
+  background: linear-gradient(135deg, #43a047, #2e7d32);
+  color: white;
+  border-color: #2e7d32;
+  box-shadow: 0 2px 8px rgba(67,160,71,0.5);
+  transform: scale(1.05);
+}
+
+.cell.empty{
+  background: #e9ecef;
+  border-color: #dee2e6;
+}
+
+/* ── MY TICKETS SECTION ── */
+#myTicketsSection{
+  margin-top: 20px;
+}
+
+.bookedMsg{
+  margin-top: 12px;
+  font-size: 16px;
+  font-weight: 600;
+  color: #4CAF50;
+}
+
+/* ── BOARD ── */
+.board{
+  display: grid;
+  grid-template-columns: repeat(10, 46px);
+  gap: 6px;
+  justify-content: center;
+  margin: 12px auto 30px;
+}
+
+.number{
+  width: 46px;
+  height: 46px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 8px;
+  background: rgba(255,255,255,0.08);
+  border: 1px solid rgba(255,255,255,0.12);
+  font-weight: 700;
+  font-size: 14px;
+  color: rgba(255,255,255,0.7);
+  transition: all 0.3s;
+}
+
+.number.called{
+  background: linear-gradient(135deg, #fb8c00, #e65100);
+  color: white;
+  border-color: #fb8c00;
+  box-shadow: 0 2px 10px rgba(251,140,0,0.5);
+  transform: scale(1.05);
+}
+
+/* ── ADMIN SETUP ── */
+.admin-setup, .admin-game{
+  background: rgba(255,255,255,0.06);
+  border: 1px solid rgba(255,255,255,0.12);
+  padding: 24px;
+  border-radius: 16px;
+  display: inline-block;
+  margin: 10px auto;
+  min-width: 320px;
+  backdrop-filter: blur(10px);
+}
+
+.admin-setup label{
+  display: block;
+  margin-bottom: 8px;
+  font-size: 14px;
+  font-weight: 600;
+  color: rgba(255,255,255,0.8);
+}
+
+.admin-setup input[type="number"]{
+  padding: 10px 16px;
+  font-size: 15px;
+  border: 1px solid rgba(255,255,255,0.2);
+  border-radius: 10px;
+  background: rgba(255,255,255,0.1);
+  color: white;
+  width: 180px;
+  margin-bottom: 14px;
+  font-family: 'Poppins', sans-serif;
+  outline: none;
+}
+
+#gameInfo{
+  color: #a5d6a7;
+  font-weight: 600;
+  margin-top: 10px;
+  font-size: 14px;
+}
+
+#setupError{
+  color: #ef9a9a;
+  font-size: 13px;
+  margin-top: 8px;
+}
+
+/* ── SELECTION PANEL ── */
+#selectionPanel{
+  background: rgba(255,255,255,0.06);
+  border: 1px solid rgba(255,255,255,0.15);
+  border-radius: 16px;
+  padding: 16px 20px;
+  max-width: 560px;
+  margin: 0 auto;
+  backdrop-filter: blur(6px);
+}
+
+.selectionRow{
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
+#selectionCount{
+  font-size: 14px;
+  font-weight: 600;
+  color: #a5d6a7;
+  min-width: 180px;
+  text-align: center;
+}
+
+/* On hold by someone else */
+.ticketButton.onhold{
+  background: linear-gradient(135deg,#f57f17,#e65100);
+  color: white;
+  cursor: not-allowed;
+  opacity: 0.8;
+}
+.ticketButton.onhold:hover{ transform:none; }
+
+/* My own hold — awaiting confirmation */
+.ticketButton.myhold{
+  background: linear-gradient(135deg,#ffd54f,#ff8f00);
+  color: #1a1a2e;
+  cursor: pointer;
+  animation: pulse 1.5s infinite;
+}
+
+@keyframes pulse{
+  0%,100%{ box-shadow: 0 0 0 0 rgba(255,213,79,0.5); }
+  50%{ box-shadow: 0 0 0 8px rgba(255,213,79,0); }
+}
+
+/* ── SEARCH SECTION ── */
+#searchSection{
+  max-width: 600px;
+  margin: 0 auto;
+}
+
+.searchRow{
+  display: flex;
+  gap: 10px;
+  justify-content: center;
+  align-items: center;
+  margin-bottom: 16px;
+  flex-wrap: wrap;
+}
+
+.searchRow input{
+  width: 300px;
+  font-size: 15px;
+  padding: 12px 18px;
+  border-radius: 12px;
+}
+
+#searchResults{
+  margin-top: 8px;
+}
+
+/* ── COUNTDOWN BOX ── */
+.countdown-box{
+  background: linear-gradient(135deg, #1a237e, #283593);
+  border: 2px solid rgba(255,255,255,0.15);
+  border-radius: 20px;
+  padding: 24px 48px;
+  display: inline-block;
+  margin: 20px auto;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.4);
+}
+.countdown-label{
+  font-size: 14px;
+  color: rgba(255,255,255,0.6);
+  text-transform: uppercase;
+  letter-spacing: 2px;
+  margin-bottom: 4px;
+}
+.countdown-number{
+  font-size: 80px;
+  font-weight: 700;
+  color: #ffcc80;
+  line-height: 1;
+  text-shadow: 0 0 30px rgba(255,204,128,0.5);
+}
+.countdown-sub{
+  font-size: 13px;
+  color: rgba(255,255,255,0.5);
+  text-transform: uppercase;
+  letter-spacing: 2px;
+  margin-top: 4px;
+}
+.cnum-label{
+  font-size: 14px;
+  color: rgba(255,255,255,0.8);
+  margin: 0 0 4px;
+}
