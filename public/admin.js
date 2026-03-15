@@ -143,6 +143,8 @@ function setReady(){
   else { errorEl.innerText = "" }
 
   socket.emit("setTicketCount", { count })
+  // Unlock speech synthesis on user interaction
+  if(window.speechSynthesis){ const u=new SpeechSynthesisUtterance(""); u.volume=0; window.speechSynthesis.speak(u) }
 
   document.getElementById("setupSection").style.display = "none"
   document.getElementById("gameSection").style.display  = "block"
@@ -233,15 +235,19 @@ const NUMBER_CALLS = {
 
 function announceNumber(num){
   if(!window.speechSynthesis) return
+  window.speechSynthesis.cancel()
   const text = "Number " + num + "... " + (NUMBER_CALLS[num] || "")
   const utter = new SpeechSynthesisUtterance(text)
   utter.rate = 0.85; utter.pitch = 1.0; utter.volume = 1.0
-  const voices = window.speechSynthesis.getVoices()
-  const preferred = voices.find(v => v.lang.startsWith("en") && (v.name.includes("Google")||v.name.includes("Natural")||v.name.includes("Premium")))
-    || voices.find(v => v.lang.startsWith("en"))
-  if(preferred) utter.voice = preferred
-  window.speechSynthesis.cancel()
-  window.speechSynthesis.speak(utter)
+  const trySpeak = () => {
+    const voices = window.speechSynthesis.getVoices()
+    const preferred = voices.find(v => v.lang.startsWith("en") && (v.name.includes("Google")||v.name.includes("Natural")||v.name.includes("Premium")))
+      || voices.find(v => v.lang.startsWith("en"))
+    if(preferred) utter.voice = preferred
+    window.speechSynthesis.speak(utter)
+  }
+  if(window.speechSynthesis.getVoices().length > 0) trySpeak()
+  else window.speechSynthesis.onvoiceschanged = trySpeak
 }
 
 /* ── CALL NUMBER ── */
