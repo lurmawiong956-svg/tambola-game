@@ -606,12 +606,128 @@ socket.on("yourHoldReleased", (ticketNum) => {
 })
 
 /* ════════════════════════════════
+   NUMBER COMMENTARY
+   ════════════════════════════════ */
+const NUMBER_CALLS = {
+  1:  "Number 1 — Kelly's Eye!",
+  2:  "Number 2 — One Little Duck!",
+  3:  "Number 3 — Cup of Tea!",
+  4:  "Number 4 — Knock at the Door!",
+  5:  "Number 5 — Man Alive!",
+  6:  "Number 6 — Tom Mix!",
+  7:  "Number 7 — Lucky Seven!",
+  8:  "Number 8 — One Fat Lady!",
+  9:  "Number 9 — Doctor's Orders!",
+  10: "Number 10 — (Prime) Minister's Den!",
+  11: "Number 11 — Legs Eleven!",
+  12: "Number 12 — One Dozen!",
+  13: "Number 13 — Unlucky for Some!",
+  14: "Number 14 — Valentine's Day!",
+  15: "Number 15 — Young and Keen!",
+  16: "Number 16 — Sweet Sixteen!",
+  17: "Number 17 — Dancing Queen!",
+  18: "Number 18 — Coming of Age!",
+  19: "Number 19 — Goodbye Teens!",
+  20: "Number 20 — One Score!",
+  21: "Number 21 — Key of the Door!",
+  22: "Number 22 — Two Little Ducks!",
+  23: "Number 23 — The Lord is My Shepherd!",
+  24: "Number 24 — Two Dozen!",
+  25: "Number 25 — Duck and Dive!",
+  26: "Number 26 — Half a Crown!",
+  27: "Number 27 — Gateway to Heaven!",
+  28: "Number 28 — Over Weight!",
+  29: "Number 29 — Rise and Shine!",
+  30: "Number 30 — Dirty Gertie!",
+  31: "Number 31 — Get Up and Run!",
+  32: "Number 32 — Buckle My Shoe!",
+  33: "Number 33 — Dirty Knee!",
+  34: "Number 34 — Ask for More!",
+  35: "Number 35 — Jump and Jive!",
+  36: "Number 36 — Three Dozen!",
+  37: "Number 37 — More than Eleven!",
+  38: "Number 38 — Christmas Cake!",
+  39: "Number 39 — Steps!",
+  40: "Number 40 — Life Begins!",
+  41: "Number 41 — Time for Fun!",
+  42: "Number 42 — Winnie the Pooh!",
+  43: "Number 43 — Down on Your Knees!",
+  44: "Number 44 — Droopy Drawers!",
+  45: "Number 45 — Halfway There!",
+  46: "Number 46 — Up to Tricks!",
+  47: "Number 47 — Four and Seven!",
+  48: "Number 48 — Four Dozen!",
+  49: "Number 49 — PC!",
+  50: "Number 50 — Half a Century!",
+  51: "Number 51 — Tweak of the Thumb!",
+  52: "Number 52 — Danny La Rue!",
+  53: "Number 53 — Stuck in a Tree!",
+  54: "Number 54 — Clean the Floor!",
+  55: "Number 55 — Snakes Alive!",
+  56: "Number 56 — Was She Worth It?",
+  57: "Number 57 — Heinz Varieties!",
+  58: "Number 58 — Make Them Wait!",
+  59: "Number 59 — Brighton Line!",
+  60: "Number 60 — Five Dozen!",
+  61: "Number 61 — Baker's Bun!",
+  62: "Number 62 — Turn the Screw!",
+  63: "Number 63 — Tickle Me!",
+  64: "Number 64 — Red Raw!",
+  65: "Number 65 — Old Age Pension!",
+  66: "Number 66 — Clickety Click!",
+  67: "Number 67 — Made in Heaven!",
+  68: "Number 68 — Saving Grace!",
+  69: "Number 69 — Either Way Up!",
+  70: "Number 70 — Three Score and Ten!",
+  71: "Number 71 — Bang on the Drum!",
+  72: "Number 72 — Six Dozen!",
+  73: "Number 73 — Queen Bee!",
+  74: "Number 74 — Hit the Floor!",
+  75: "Number 75 — Strive and Strive!",
+  76: "Number 76 — Trombones!",
+  77: "Number 77 — Sunset Strip!",
+  78: "Number 78 — Heaven's Gate!",
+  79: "Number 79 — One More Time!",
+  80: "Number 80 — Eight and Blank!",
+  81: "Number 81 — Stop and Run!",
+  82: "Number 82 — Straight On Through!",
+  83: "Number 83 — Time for Tea!",
+  84: "Number 84 — Seven Dozen!",
+  85: "Number 85 — Staying Alive!",
+  86: "Number 86 — Between the Sticks!",
+  87: "Number 87 — Torquay in Devon!",
+  88: "Number 88 — Two Fat Ladies!",
+  89: "Number 89 — Nearly There!",
+  90: "Number 90 — Top of the Shop!"
+}
+
+function announceNumber(num){
+  if(!window.speechSynthesis) return
+  const text = NUMBER_CALLS[num] || "Number " + num
+  const utter = new SpeechSynthesisUtterance(text)
+  utter.rate   = 0.9
+  utter.pitch  = 1.0
+  utter.volume = 1.0
+  // Try to use a nice voice
+  const voices = window.speechSynthesis.getVoices()
+  const preferred = voices.find(v =>
+    v.lang.startsWith("en") && (v.name.includes("Google") || v.name.includes("Natural") || v.name.includes("Premium"))
+  ) || voices.find(v => v.lang.startsWith("en"))
+  if(preferred) utter.voice = preferred
+  window.speechSynthesis.cancel() // cancel any ongoing speech
+  window.speechSynthesis.speak(utter)
+}
+
+/* ════════════════════════════════
    SOCKET — NUMBER CALLED
    ════════════════════════════════ */
 socket.on("numberCalled", (number) => {
   const el = document.getElementById("currentNumber")
   if(el) el.innerText = number
   markedNumbers.push(number)
+
+  // Audio commentary
+  announceNumber(number)
 
   // Mark on called numbers board
   const b = document.getElementById("b"+number); if(b) b.classList.add("called")
@@ -623,7 +739,6 @@ socket.on("numberCalled", (number) => {
   document.querySelectorAll('[id$="c'+number+'"]').forEach(cell => {
     if(cell.id.startsWith("mt")) cell.classList.add("marked")
   })
-
 })
 
 /* ════════════════════════════════
