@@ -6,7 +6,12 @@ const app    = express()
 const server = http.createServer(app)
 const io     = new Server(server, { cors: { origin: "*" } })
 
-app.use(express.static("public"))
+const path = require("path")
+const fs = require("fs")
+const publicDir = fs.existsSync(path.join(__dirname, "public")) 
+  ? path.join(__dirname, "public") 
+  : __dirname
+app.use(express.static(publicDir))
 
 /* ── TICKET GENERATION ── */
 function shuffle(arr){
