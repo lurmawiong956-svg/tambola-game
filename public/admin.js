@@ -331,10 +331,42 @@ socket.on("numberCalled", (number) => {
   document.getElementById("currentNumber").innerText = num
   const box = document.getElementById("b"+num); if(box) box.classList.add("called")
 })
-socket.on("gameStarted", ({onHoldTickets,bookedTickets}) => {
+socket.on("gameStarted", ({ onHoldTickets, bookedTickets, totalTickets, calledNumbers, startTime, activePrizes: ap }) => {
   pendingHolds={}; confirmedBookings={}
   if(onHoldTickets) Object.entries(onHoldTickets).forEach(([n,d])=>{pendingHolds[n]={playerName:d.playerName}})
   if(bookedTickets) Object.entries(bookedTickets).forEach(([n,name])=>{confirmedBookings[n]=name})
+
+  // Restore admin UI if game is already running
+  if(totalTickets > 0){
+    document.getElementById("setupSection").style.display  = "none"
+    document.getElementById("gameSection").style.display   = "block"
+    document.getElementById("timingSetup").style.display   = "none"
+    document.getElementById("resetBtnPre").style.display   = "none"
+    document.getElementById("gameControls").style.display  = "block"
+    document.getElementById("activePrizeSection").style.display = ap && ap.length ? "block" : "none"
+    document.getElementById("gameInfo").innerText = totalTickets + " tickets"
+    document.getElementById("ticketCount").value  = totalTickets
+
+    // Restore called numbers on board
+    createBoard()
+    if(calledNumbers && calledNumbers.length > 0){
+      calledNumbers.forEach(n => {
+        // Remove from available numbers
+        const idx = numbers.indexOf(n)
+        if(idx > -1) numbers.splice(idx, 1)
+        const box = document.getElementById("b"+n); if(box) box.classList.add("called")
+      })
+      document.getElementById("currentNumber").innerText = calledNumbers[calledNumbers.length-1]
+    }
+
+    // Restore prize toggles
+    if(ap && ap.length){
+      renderGamePrizeToggles(ap)
+    }
+
+    updateAutoStatus()
+  }
+
   renderHoldTable(); renderBookedTable()
 })
 socket.on("prizeClaimed", ({ticketNum,playerName,prize}) => {
@@ -390,6 +422,33 @@ function shareWinners(){
   })
   window.open("https://wa.me/?text="+encodeURIComponent(msg),"_blank")
 }
+
+/* ── RESTORE WINNERS ON RELOAD ── */
+socket.on("existingClaims", (claims) => {
+  Object.entries(claims).forEach(([key, data]) => {
+    if(!data || !data.playerName) return
+    // Only process base prize keys (not per-ticket keys like "5_fullHouse")
+    const prizeKeys = ["earlyFive","earlySeven","topLine","middleLine","bottomLine",
+      "corners","star","bullseye","leftEdge","rightEdge","firstAndLast",
+      "anyTwoLines","fullHouse","secondHouse","thirdHouse"]
+    if(!prizeKeys.includes(key)) return
+    const prize = ALL_PRIZES.find(p => p.key === key)
+    if(!prize) return
+    winnersList.push({ prize: prize.label, playerName: data.playerName, ticketNum: data.ticketNum })
+    const noEl = document.getElementById("noPrizes")
+    const log  = document.getElementById("prizeLog")
+    if(!log) return
+    if(noEl) noEl.style.display = "none"
+    const sheet = Math.floor((data.ticketNum-1)/6)+1
+    const row = document.createElement("div")
+    row.style.cssText = "display:flex;justify-content:space-between;align-items:center;padding:10px 14px;margin-bottom:8px;background:rgba(255,255,255,0.06);border-radius:10px;border:1px solid rgba(255,215,0,0.15);flex-wrap:wrap;gap:6px;"
+    row.innerHTML =
+      '<span style="font-size:15px;font-weight:700;color:#ffcc80;min-width:160px;">'+prize.label+'</span>'+
+      '<span style="font-size:14px;color:#a5d6a7;font-weight:600;">'+data.playerName+'</span>'+
+      '<span style="font-size:13px;color:rgba(255,255,255,0.5);">Ticket #'+data.ticketNum+' · Sheet '+sheet+'</span>'
+    log.appendChild(row)
+  })
+})
 
 /* ── GAME OVER ── */
 socket.on("gameOver", () => {
