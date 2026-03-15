@@ -142,6 +142,7 @@ function updateSelectionPanel(){
    TICKET CLICKED
    ════════════════════════════════ */
 function ticketClicked(num){
+  unlockAudio()
   if(bookedTickets[num] && !myBookedTickets.includes(num)){
     previewTicket(num)
     return
@@ -354,6 +355,7 @@ function startCountdown(st){
 }
 
 function goLive(){
+  unlockAudio()
   showScreen("gameScreen")
   createBoard()
   // Mark already-called numbers on board for late joiners
@@ -701,21 +703,50 @@ const NUMBER_CALLS = {
   90: "Number 90 — Top of the Shop!"
 }
 
+let audioUnlocked = false
+let audioEnabled  = true
+
+function toggleAudioCommentary(){
+  audioEnabled = !audioEnabled
+  const btn = document.getElementById("audioBtn")
+  if(btn) btn.innerText = audioEnabled ? "🔊 Audio: ON" : "🔇 Audio: OFF"
+  if(audioEnabled) unlockAudio()
+}
+
+function unlockAudio(){
+  if(audioUnlocked) return
+  // Speak a silent utterance to unlock the speech API
+  if(window.speechSynthesis){
+    const u = new SpeechSynthesisUtterance("")
+    u.volume = 0
+    window.speechSynthesis.speak(u)
+    audioUnlocked = true
+  }
+}
+
 function announceNumber(num){
   if(!window.speechSynthesis) return
+  if(!audioEnabled) return
+  window.speechSynthesis.cancel()
   const text = NUMBER_CALLS[num] || "Number " + num
   const utter = new SpeechSynthesisUtterance(text)
-  utter.rate   = 0.9
+  utter.rate   = 0.85
   utter.pitch  = 1.0
   utter.volume = 1.0
-  // Try to use a nice voice
-  const voices = window.speechSynthesis.getVoices()
-  const preferred = voices.find(v =>
-    v.lang.startsWith("en") && (v.name.includes("Google") || v.name.includes("Natural") || v.name.includes("Premium"))
-  ) || voices.find(v => v.lang.startsWith("en"))
-  if(preferred) utter.voice = preferred
-  window.speechSynthesis.cancel() // cancel any ongoing speech
-  window.speechSynthesis.speak(utter)
+  // Wait for voices to load if needed
+  const trySpeak = () => {
+    const voices = window.speechSynthesis.getVoices()
+    const preferred = voices.find(v =>
+      v.lang.startsWith("en") && (v.name.includes("Google") || v.name.includes("Natural") || v.name.includes("Premium"))
+    ) || voices.find(v => v.lang.startsWith("en"))
+    if(preferred) utter.voice = preferred
+    window.speechSynthesis.speak(utter)
+  }
+  if(window.speechSynthesis.getVoices().length > 0){
+    trySpeak()
+  } else {
+    window.speechSynthesis.onvoiceschanged = trySpeak
+  }
 }
 
 /* ════════════════════════════════
