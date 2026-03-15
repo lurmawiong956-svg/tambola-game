@@ -6,6 +6,7 @@ const app    = express()
 const server = http.createServer(app)
 const io     = new Server(server, { cors: { origin: "*" } })
 
+// Serve static files from public/ or current directory
 const path = require("path")
 const fs = require("fs")
 const publicDir = fs.existsSync(path.join(__dirname, "public")) 
@@ -218,13 +219,19 @@ io.on("connection", (socket) => {
       bookedTickets: gameState.bookedTickets,
       onHoldTickets: gameState.onHoldTickets,
       calledNumbers: gameState.calledNumbers,
-      startTime:     gameState.startTime
+      startTime:     gameState.startTime  // send always so client knows game state
     })
+    // If countdown still running, send countdown event too
     if(gameState.startTime && Date.now() < gameState.startTime){
       socket.emit("gameCountdown", { startTime: gameState.startTime, activePrizes: gameState.activePrizes })
     }
+    // Send existing winners to late joiners
     if(Object.keys(gameState.globalClaimed).length > 0){
       socket.emit("existingClaims", gameState.globalClaimed)
+    }
+    // Send active prizes so late joiners know what's active
+    if(gameState.activePrizes && gameState.activePrizes.length > 0){
+      socket.emit("activePrizesUpdated", gameState.activePrizes)
     }
   }
 
@@ -329,4 +336,5 @@ io.on("connection", (socket) => {
   socket.on("disconnect", () => console.log("Disconnected:", socket.id))
 })
 
-server.listen(5000, () => console.log("✅ Server running on http://localhost:5000"))
+const PORT = process.env.PORT || 5000
+server.listen(PORT, () => console.log("✅ Server running on port", PORT))
