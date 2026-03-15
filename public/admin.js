@@ -1,4 +1,6 @@
 /* ── LOGIN ── */
+let pendingRestore = null  // store gameStarted data received before login
+
 function doLogin(){
   const user = document.getElementById("loginUser").value.trim()
   const pass = document.getElementById("loginPass").value
@@ -8,6 +10,8 @@ function doLogin(){
     document.getElementById("loginScreen").style.display = "none"
     document.getElementById("adminApp").style.display    = "block"
     err.innerText = ""
+    // Apply any restore data that arrived before login
+    if(pendingRestore){ restoreAdminState(pendingRestore); pendingRestore = null }
   } else {
     err.innerText = "❌ Invalid username or password"
     document.getElementById("loginPass").value = ""
@@ -370,44 +374,44 @@ socket.on("numberCalled", (number) => {
   document.getElementById("currentNumber").innerText = num
   const box = document.getElementById("b"+num); if(box) box.classList.add("called")
 })
-socket.on("gameStarted", ({ onHoldTickets, bookedTickets, totalTickets, calledNumbers, startTime, activePrizes: ap }) => {
+socket.on("gameStarted", (data) => {
+  const isLoggedIn = document.getElementById("adminApp").style.display !== "none"
+  if(!isLoggedIn){
+    pendingRestore = data  // save for after login
+    return
+  }
+  restoreAdminState(data)
+})
+
+function restoreAdminState(data){
+  const { onHoldTickets, bookedTickets, totalTickets, calledNumbers, startTime, activePrizes: ap } = data
   pendingHolds={}; confirmedBookings={}
   if(onHoldTickets) Object.entries(onHoldTickets).forEach(([n,d])=>{pendingHolds[n]={playerName:d.playerName}})
   if(bookedTickets) Object.entries(bookedTickets).forEach(([n,name])=>{confirmedBookings[n]=name})
 
-  // Restore admin UI if game is already running
   if(totalTickets > 0){
-    document.getElementById("setupSection").style.display  = "none"
-    document.getElementById("gameSection").style.display   = "block"
-    document.getElementById("timingSetup").style.display   = "none"
-    document.getElementById("resetBtnPre").style.display   = "none"
-    document.getElementById("gameControls").style.display  = "block"
-    document.getElementById("activePrizeSection").style.display = ap && ap.length ? "block" : "none"
-    document.getElementById("gameInfo").innerText = totalTickets + " tickets"
-    document.getElementById("ticketCount").value  = totalTickets
+    document.getElementById("setupSection").style.display   = "none"
+    document.getElementById("gameSection").style.display    = "block"
+    document.getElementById("timingSetup").style.display    = "none"
+    document.getElementById("resetBtnPre").style.display    = "none"
+    document.getElementById("gameControls").style.display   = "block"
+    document.getElementById("activePrizeSection").style.display = (ap && ap.length) ? "block" : "none"
+    document.getElementById("gameInfo").innerText  = totalTickets + " tickets — game running"
+    document.getElementById("ticketCount").value   = totalTickets
 
-    // Restore called numbers on board
     createBoard()
     if(calledNumbers && calledNumbers.length > 0){
       calledNumbers.forEach(n => {
-        // Remove from available numbers
-        const idx = numbers.indexOf(n)
-        if(idx > -1) numbers.splice(idx, 1)
+        const idx = numbers.indexOf(n); if(idx > -1) numbers.splice(idx, 1)
         const box = document.getElementById("b"+n); if(box) box.classList.add("called")
       })
       document.getElementById("currentNumber").innerText = calledNumbers[calledNumbers.length-1]
     }
-
-    // Restore prize toggles
-    if(ap && ap.length){
-      renderGamePrizeToggles(ap)
-    }
-
+    if(ap && ap.length) renderGamePrizeToggles(ap)
     updateAutoStatus()
   }
-
   renderHoldTable(); renderBookedTable()
-})
+}
 socket.on("prizeClaimed", ({ticketNum,playerName,prize}) => {
   // Store in winners list
   winnersList.push({ prize, playerName, ticketNum })
