@@ -203,6 +203,44 @@ function checkPrizes(){
   }
 }
 
+/* ── STATE PERSISTENCE ── */
+const STATE_FILE = path.join(__dirname, "gamestate.json")
+
+function saveState(){
+  try {
+    const toSave = {
+      started:       gameState.started,
+      totalTickets:  gameState.totalTickets,
+      bookedTickets: gameState.bookedTickets,
+      onHoldTickets: gameState.onHoldTickets,
+      calledNumbers: gameState.calledNumbers,
+      startTime:     gameState.startTime,
+      activePrizes:  gameState.activePrizes,
+      globalClaimed: gameState.globalClaimed
+    }
+    fs.writeFileSync(STATE_FILE, JSON.stringify(toSave))
+  } catch(e){ console.log("Save error:", e.message) }
+}
+
+function loadState(){
+  try {
+    if(!fs.existsSync(STATE_FILE)) return
+    const saved = JSON.parse(fs.readFileSync(STATE_FILE, "utf8"))
+    if(!saved.started) return
+    console.log("📂 Restoring game state...")
+    gameState.started       = saved.started
+    gameState.totalTickets  = saved.totalTickets
+    gameState.bookedTickets = saved.bookedTickets || {}
+    gameState.onHoldTickets = saved.onHoldTickets || {}
+    gameState.calledNumbers = saved.calledNumbers || []
+    gameState.startTime     = saved.startTime
+    gameState.activePrizes  = saved.activePrizes  || []
+    gameState.globalClaimed = saved.globalClaimed || {}
+    gameState.sheets        = generateAllSheets(saved.totalTickets)
+    console.log("✅ Restored:", saved.totalTickets, "tickets,", saved.calledNumbers.length, "numbers called")
+  } catch(e){ console.log("Load error:", e.message) }
+}
+
 /* ── GAME STATE ── */
 let gameState = {
   started:       false,
