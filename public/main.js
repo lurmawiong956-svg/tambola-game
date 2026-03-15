@@ -706,11 +706,19 @@ const NUMBER_CALLS = {
 let audioUnlocked = false
 let audioEnabled  = true
 
+// Unlock audio on first ANY user interaction
+;["click","touchstart","keydown"].forEach(evt => {
+  document.addEventListener(evt, function onFirst(){
+    unlockAudio()
+    document.removeEventListener(evt, onFirst)
+  }, { once: true })
+})
+
 function toggleAudioCommentary(){
+  unlockAudio()  // always unlock on button click
   audioEnabled = !audioEnabled
   const btn = document.getElementById("audioBtn")
   if(btn) btn.innerText = audioEnabled ? "🔊 Audio: ON" : "🔇 Audio: OFF"
-  if(audioEnabled) unlockAudio()
 }
 
 function unlockAudio(){
