@@ -356,6 +356,14 @@ function startCountdown(st){
 function goLive(){
   showScreen("gameScreen")
   createBoard()
+  // Mark already-called numbers on board for late joiners
+  markedNumbers.forEach(n => {
+    const b = document.getElementById("b"+n)
+    if(b) b.classList.add("called")
+    // Update current number display to last called
+    const el = document.getElementById("currentNumber")
+    if(el && markedNumbers.length > 0) el.innerText = markedNumbers[markedNumbers.length-1]
+  })
   showMyTickets()
 }
 
@@ -503,11 +511,27 @@ socket.on("gameStarted", (data) => {
   bookedTickets    = data.bookedTickets || {}
   onHoldTickets    = data.onHoldTickets || {}
   markedNumbers    = data.calledNumbers || []
-  selectedTickets  = []; myHeldTickets=[]; myBookedTickets=[]; previewTicketNum=null; startTime=null
+  selectedTickets  = []; myHeldTickets=[]; myBookedTickets=[]; previewTicketNum=null
+  startTime        = data.startTime || null
 
-  // Show booking screen — ticket list visible, no countdown yet
-  showScreen("bookingScreen")
-  buildTicketList("ticketListPre","ticketInfoPre")
+  const now = Date.now()
+
+  if(startTime && now < startTime){
+    // Countdown still running
+    showScreen("countdownScreen")
+    buildTicketList("ticketListCd","ticketInfoCd")
+    startCountdown(startTime)
+  } else if(data.calledNumbers && data.calledNumbers.length > 0){
+    // Game already live — numbers have been called
+    goLive()
+  } else if(startTime && now >= startTime){
+    // Countdown just ended, game live
+    goLive()
+  } else {
+    // Game ready but not started yet — show booking screen
+    showScreen("bookingScreen")
+    buildTicketList("ticketListPre","ticketInfoPre")
+  }
 })
 
 /* ════════════════════════════════
