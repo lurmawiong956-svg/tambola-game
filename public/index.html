@@ -85,29 +85,45 @@
       </button>
     </div>
 
-    <div id="myTicketsSection" style="display:none">
+    <!-- Called Numbers — right below current number -->
+    <h2>Called Numbers</h2>
+    <div class="board" id="board"></div>
+
+    <hr>
+
+    <!-- My Booked Tickets — always visible, scrollable -->
+    <div id="myTicketsSection">
       <h2>My Booked Tickets</h2>
-      <div id="myTicketsList"></div>
+      <div id="myTicketsList" style="max-height:300px;overflow-y:auto;padding-right:4px;"></div>
       <br>
       <button onclick="printMyTickets()">🖨️ Print My Tickets</button>
     </div>
 
     <hr>
 
+    <!-- Search by Name -->
     <div id="searchSection">
       <h2>🔍 Search by Name</h2>
       <div class="searchRow">
-        <input type="text" id="searchInput" placeholder="Type a name..." oninput="searchTickets()">
+        <input type="text" id="searchInput" placeholder="Type a name to find ticket..." oninput="searchAndScroll()">
         <button class="changeBtn" onclick="clearSearch()">✖</button>
       </div>
       <div id="searchResults"></div>
     </div>
 
-    <h2>Called Numbers</h2>
-    <div class="board" id="board"></div>
+    <hr>
+
+    <!-- All Tickets List (scrollable) -->
+    <div style="max-width:600px;margin:0 auto;">
+      <h2>📋 All Tickets</h2>
+      <p id="ticketInfo"></p>
+      <div id="ticketList" style="max-height:280px;overflow-y:auto;padding-right:4px;"></div>
+    </div>
+
+    <hr>
 
     <!-- Winners List -->
-    <div id="winnersSection" style="display:none;background:rgba(255,215,0,0.07);border:1px solid rgba(255,215,0,0.25);border-radius:16px;padding:16px 20px;max-width:600px;margin:24px auto 0;">
+    <div id="winnersSection" style="display:none;background:rgba(255,215,0,0.07);border:1px solid rgba(255,215,0,0.25);border-radius:16px;padding:16px 20px;max-width:600px;margin:16px auto;">
       <h2>🏆 Prize Winners</h2>
       <div id="playerWinnersList"></div>
     </div>
