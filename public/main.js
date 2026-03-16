@@ -357,16 +357,20 @@ function startCountdown(st){
 function goLive(){
   unlockAudio()
   showScreen("gameScreen")
+  // Build ticket list in game screen
+  buildTicketList("ticketList","ticketInfo")
   createBoard()
   // Mark already-called numbers on board for late joiners
   markedNumbers.forEach(n => {
     const b = document.getElementById("b"+n)
     if(b) b.classList.add("called")
-    // Update current number display to last called
-    const el = document.getElementById("currentNumber")
-    if(el && markedNumbers.length > 0) el.innerText = markedNumbers[markedNumbers.length-1]
   })
+  if(markedNumbers.length > 0){
+    const el = document.getElementById("currentNumber")
+    if(el) el.innerText = markedNumbers[markedNumbers.length-1]
+  }
   showMyTickets()
+  refreshTicketButtons()
 }
 
 /* ════════════════════════════════
@@ -409,6 +413,34 @@ function printMyTickets(){
 /* ════════════════════════════════
    SEARCH
    ════════════════════════════════ */
+function searchAndScroll(){
+  const query = document.getElementById("searchInput").value.trim().toLowerCase()
+  if(!query){ document.getElementById("searchResults").innerHTML = ""; return }
+
+  // Search bookedTickets and onHoldTickets by name
+  const matchTickets = [
+    ...Object.entries(bookedTickets).filter(([,n])=>n.toLowerCase().includes(query)).map(([t,n])=>({ticketNum:+t,name:n,held:false})),
+    ...Object.entries(onHoldTickets).filter(([,n])=>n.toLowerCase().includes(query)).map(([t,n])=>({ticketNum:+t,name:n,held:true}))
+  ]
+
+  // Highlight matched ticket buttons in the list and scroll to first one
+  if(matchTickets.length > 0){
+    const firstTicket = matchTickets[0].ticketNum
+    const btn = document.getElementById("tbtn"+firstTicket)
+    if(btn){
+      btn.scrollIntoView({ behavior:"smooth", block:"center" })
+      // Flash highlight
+      const orig = btn.className
+      btn.style.outline = "3px solid #ffcc80"
+      btn.style.outlineOffset = "2px"
+      setTimeout(()=>{ btn.style.outline=""; btn.style.outlineOffset="" }, 2000)
+    }
+  }
+
+  // Also show search results below
+  searchTickets()
+}
+
 function searchTickets(){
   const query   = document.getElementById("searchInput").value.trim().toLowerCase()
   const results = document.getElementById("searchResults")
@@ -433,6 +465,8 @@ function searchTickets(){
 function clearSearch(){
   document.getElementById("searchInput").value=""
   document.getElementById("searchResults").innerHTML=""
+  // Remove any highlights
+  document.querySelectorAll(".ticketButton").forEach(b=>{ b.style.outline=""; b.style.outlineOffset="" })
 }
 
 /* ════════════════════════════════
