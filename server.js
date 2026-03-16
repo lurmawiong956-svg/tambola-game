@@ -159,36 +159,71 @@ function checkPrizes(){
       }
     })
 
-    // ── Check Full House (each ticket can only win ONE house prize) ──
-    const ticketAlreadyWonHouse = gameState.globalClaimed[ticketNum+"_house"]
-    if(!ticketAlreadyWonHouse){
+    // ── Check Full House ──
+    if(doFullHouse && !gameState.globalClaimed[ticketNum+"_fullHouse"]){
       const isFullHouse = PRIZE_DEFS.find(p=>p.key==="fullHouse").check(ticket, marked)
       if(isFullHouse){
-        // Determine which house prize this ticket gets
-        const fhCount = gameState.globalClaimed["fullHouseCount"] || 0
-
-        if(fhCount === 0 && doFullHouse && !gameState.globalClaimed["fullHouse"]){
+        // Mark this ticket as claimed full house
+        gameState.globalClaimed[ticketNum+"_fullHouse"] = { playerName, ticketNum }
+        // Set base key only for first winner (used as prerequisite for second/third)
+        if(!gameState.globalClaimed["fullHouse"])
           gameState.globalClaimed["fullHouse"] = { playerName, ticketNum }
-          gameState.globalClaimed["fullHouseCount"] = 1
-          gameState.globalClaimed[ticketNum+"_house"] = true
-          console.log("✅ Full House →", playerName, "Ticket #"+ticketNum)
-          io.emit("prizeClaimed", { ticketNum, playerName, prize: "🎉 Full House", prizeKey: "fullHouse" })
-        } else if(fhCount === 1 && doSecond && !gameState.globalClaimed["secondHouse"]){
-          gameState.globalClaimed["secondHouse"] = { playerName, ticketNum }
-          gameState.globalClaimed["fullHouseCount"] = 2
-          gameState.globalClaimed[ticketNum+"_house"] = true
-          console.log("✅ Second Full House →", playerName, "Ticket #"+ticketNum)
-          io.emit("prizeClaimed", { ticketNum, playerName, prize: "🥇 Second Full House", prizeKey: "secondHouse" })
-        } else if(fhCount === 2 && doThird && !gameState.globalClaimed["thirdHouse"]){
-          gameState.globalClaimed["thirdHouse"] = { playerName, ticketNum }
-          gameState.globalClaimed["fullHouseCount"] = 3
-          gameState.globalClaimed[ticketNum+"_house"] = true
-          console.log("✅ Third Full House →", playerName, "Ticket #"+ticketNum)
-          io.emit("prizeClaimed", { ticketNum, playerName, prize: "🏅 Third Full House", prizeKey: "thirdHouse" })
-        }
+        console.log("✅ Full House →", playerName, "Ticket #"+ticketNum)
+        io.emit("prizeClaimed", { ticketNum, playerName, prize: "🎉 Full House", prizeKey: "fullHouse" })
       }
     }
   })
+
+  // ── After checking all tickets, handle Second/Third Full House ──
+  // These only fire in the NEXT number call after full house is claimed
+  // (so same-call full house winners all get Full House, not split into 1st/2nd/3rd)
+
+  // Second/Third Full House — only after Full House already claimed in a PREVIOUS call
+  const fhWinners = Object.keys(gameState.globalClaimed).filter(k => k.endsWith("_fullHouse")).length
+  if(doSecond && fhWinners > 0 && !gameState.globalClaimed["secondHouse"]){
+    // Check all tickets for second house in this call
+    Object.entries(booked).forEach(([tNum, playerName]) => {
+      if(gameState.globalClaimed[tNum+"_secondHouse"]) return
+      if(gameState.globalClaimed[tNum+"_fullHouse"]) return // already won full house
+      const ticketNum = parseInt(tNum)
+      const sheetIdx  = Math.floor((ticketNum-1)/6)
+      const ticketIdx = (ticketNum-1)%6
+      const ticket    = sheets[sheetIdx] && sheets[sheetIdx][ticketIdx]
+      if(!ticket) return
+      const isFullHouse = PRIZE_DEFS.find(p=>p.key==="fullHouse").check(ticket, marked)
+      if(isFullHouse){
+        gameState.globalClaimed[tNum+"_secondHouse"] = { playerName, ticketNum }
+        if(!gameState.globalClaimed["secondHouse"])
+          gameState.globalClaimed["secondHouse"] = { playerName, ticketNum }
+        console.log("✅ Second Full House →", playerName, "Ticket #"+ticketNum)
+        io.emit("prizeClaimed", { ticketNum, playerName, prize: "🥇 Second Full House", prizeKey: "secondHouse" })
+      }
+    })
+  }
+
+  if(doThird && gameState.globalClaimed["secondHouse"] && !gameState.globalClaimed["thirdHouse"]){
+    const shWinners = Object.keys(gameState.globalClaimed).filter(k => k.endsWith("_secondHouse")).length
+    if(shWinners > 0){
+      Object.entries(booked).forEach(([tNum, playerName]) => {
+        if(gameState.globalClaimed[tNum+"_thirdHouse"]) return
+        if(gameState.globalClaimed[tNum+"_fullHouse"]) return
+        if(gameState.globalClaimed[tNum+"_secondHouse"]) return
+        const ticketNum = parseInt(tNum)
+        const sheetIdx  = Math.floor((ticketNum-1)/6)
+        const ticketIdx = (ticketNum-1)%6
+        const ticket    = sheets[sheetIdx] && sheets[sheetIdx][ticketIdx]
+        if(!ticket) return
+        const isFullHouse = PRIZE_DEFS.find(p=>p.key==="fullHouse").check(ticket, marked)
+        if(isFullHouse){
+          gameState.globalClaimed[tNum+"_thirdHouse"] = { playerName, ticketNum }
+          if(!gameState.globalClaimed["thirdHouse"])
+            gameState.globalClaimed["thirdHouse"] = { playerName, ticketNum }
+          console.log("✅ Third Full House →", playerName, "Ticket #"+ticketNum)
+          io.emit("prizeClaimed", { ticketNum, playerName, prize: "🏅 Third Full House", prizeKey: "thirdHouse" })
+        }
+      })
+    }
+  }
 
   // Check game over
   const allDone = prizes.every(p => {
