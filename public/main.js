@@ -455,7 +455,6 @@ function addToWinnersList(prize, playerName, ticketNum){
 
   const sheet = Math.floor((ticketNum-1)/6)+1
 
-  // Show in all winner sections across screens
   ;["winnersSection","winnersSectionCd"].forEach(secId => {
     const section = document.getElementById(secId)
     if(section) section.style.display = "block"
@@ -467,13 +466,82 @@ function addToWinnersList(prize, playerName, ticketNum){
     const row = document.createElement("div")
     row.style.cssText = "display:flex;justify-content:space-between;align-items:center;"
       + "padding:10px 12px;margin-bottom:8px;background:rgba(255,255,255,0.06);"
-      + "border-radius:10px;border:1px solid rgba(255,215,0,0.15);flex-wrap:wrap;gap:6px;"
+      + "border-radius:10px;border:1px solid rgba(255,215,0,0.15);flex-wrap:wrap;gap:8px;"
     row.innerHTML =
-      '<span style="font-size:14px;font-weight:700;color:#ffcc80;min-width:150px;">'+prize+'</span>'+
+      '<span style="font-size:14px;font-weight:700;color:#ffcc80;min-width:140px;">'+prize+'</span>'+
       '<span style="font-size:14px;color:#a5d6a7;font-weight:600;">'+playerName+'</span>'+
-      '<span style="font-size:12px;color:rgba(255,255,255,0.5);">#'+ticketNum+' · Sheet '+sheet+'</span>'
+      '<span style="font-size:12px;color:rgba(255,255,255,0.5);">#'+ticketNum+' · Sheet '+sheet+'</span>'+
+      '<button onclick="viewWinnerTicket('+ticketNum+')" '+
+      'style="font-size:11px;padding:4px 10px;background:rgba(255,255,255,0.12);border:1px solid rgba(255,255,255,0.2);'+
+      'color:#fff;border-radius:6px;cursor:pointer;">👁 View</button>'
     list.insertBefore(row, list.firstChild)
   })
+}
+
+function viewWinnerTicket(ticketNum){
+  ticketNum = parseInt(ticketNum)
+  if(!ticketSheets.length) return
+  const sheetIdx  = Math.floor((ticketNum-1)/6)
+  const ticketIdx = (ticketNum-1)%6
+  const ticket    = ticketSheets[sheetIdx] && ticketSheets[sheetIdx][ticketIdx]
+  if(!ticket) return
+
+  const playerName = bookedTickets[ticketNum] || ""
+  const sheet      = sheetIdx+1
+
+  // Build popup overlay
+  const old = document.getElementById("winnerTicketPopup")
+  if(old) old.remove()
+
+  const overlay = document.createElement("div")
+  overlay.id = "winnerTicketPopup"
+  overlay.style.cssText = "position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.75);"
+    + "z-index:99999;display:flex;align-items:center;justify-content:center;padding:16px;box-sizing:border-box;"
+  overlay.onclick = (e) => { if(e.target === overlay) overlay.remove() }
+
+  const card = document.createElement("div")
+  card.style.cssText = "background:white;border-radius:16px;padding:20px;max-width:520px;width:100%;"
+    + "box-shadow:0 8px 40px rgba(0,0,0,0.5);"
+
+  // Header
+  const hdr = document.createElement("div")
+  hdr.style.cssText = "display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;"
+    + "padding:10px 14px;background:linear-gradient(135deg,#1976d2,#0d47a1);border-radius:10px;color:white;"
+  hdr.innerHTML = '<span style="font-size:15px;font-weight:700;">🎟 Ticket #'+ticketNum+' · Sheet '+sheet+'</span>'
+    + '<span style="font-size:14px;color:#ffeb3b;font-weight:600;">'+playerName+'</span>'
+  card.appendChild(hdr)
+
+  // Grid
+  const grid = document.createElement("div")
+  grid.style.cssText = "display:grid;grid-template-columns:repeat(9,1fr);gap:4px;"
+  for(let r=0;r<3;r++){
+    for(let c=0;c<9;c++){
+      const cell = document.createElement("div")
+      const val  = ticket[r][c]
+      if(val !== 0){
+        const marked = markedNumbers.includes(val)
+        cell.style.cssText = "padding:8px 2px;text-align:center;font-weight:700;font-size:13px;"
+          + "border-radius:6px;border:1px solid #ddd;"
+          + (marked ? "background:#43a047;color:white;" : "background:#f5f5f5;color:#333;")
+        cell.innerText = val
+      } else {
+        cell.style.cssText = "padding:8px 2px;border-radius:6px;background:#e0e0e0;"
+      }
+      grid.appendChild(cell)
+    }
+  }
+  card.appendChild(grid)
+
+  // Close button
+  const closeBtn = document.createElement("button")
+  closeBtn.innerText = "✖ Close"
+  closeBtn.style.cssText = "margin-top:14px;width:100%;padding:10px;font-size:14px;background:#1976d2;"
+    + "color:white;border:none;border-radius:8px;cursor:pointer;font-weight:600;"
+  closeBtn.onclick = () => overlay.remove()
+  card.appendChild(closeBtn)
+
+  overlay.appendChild(card)
+  document.body.appendChild(overlay)
 }
 
 function shareWinnersPlayer(){
