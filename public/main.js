@@ -48,63 +48,93 @@ function createBoard(){
 }
 
 /* ════════════════════════════════
-   TICKET LIST — only booked tickets, real ticket cards
+   TICKET LIST
+   — booking/countdown screens: all tickets as clickable buttons (original behaviour)
+   — game screen: only booked tickets as real ticket cards
    ════════════════════════════════ */
 function buildTicketList(listId, infoId){
   const list = document.getElementById(listId)
   if(!list || !totalTickets) return
   list.innerHTML = ""
 
-  const bookedEntries = Object.entries(bookedTickets)
-    .sort((a,b) => parseInt(a[0]) - parseInt(b[0]))
+  // ── GAME SCREEN: show only booked tickets as real cards ──
+  if(listId === "ticketList"){
+    const bookedEntries = Object.entries(bookedTickets)
+      .sort((a,b) => parseInt(a[0]) - parseInt(b[0]))
 
-  if(bookedEntries.length === 0){
-    list.innerHTML = '<p style="color:rgba(255,255,255,0.4);font-size:13px;padding:16px;">No tickets booked yet</p>'
+    if(bookedEntries.length === 0){
+      list.innerHTML = '<p style="color:rgba(255,255,255,0.4);font-size:13px;padding:16px;">No tickets booked yet</p>'
+      updateInfo(infoId)
+      return
+    }
+
+    bookedEntries.forEach(([tNum, playerName]) => {
+      const num = parseInt(tNum)
+      if(!ticketSheets.length) return
+      const ticket = ticketSheets[Math.floor((num-1)/6)][(num-1)%6]
+      if(!ticket) return
+
+      const card = document.createElement("div")
+      card.id = "allcard"+num
+      card.className = "ticketCard"
+      card.style.cssText = "margin-bottom:12px;padding:14px 16px;"
+
+      const hdr = document.createElement("div")
+      hdr.className = "ticket-header"
+      hdr.innerHTML =
+        '<span class="ticket-label">🎟 Ticket #<strong>'+num+'</strong>'
+        +' &nbsp;·&nbsp; Sheet '+(Math.floor((num-1)/6)+1)+'</span>'
+        +'<span class="ticket-name">✅ '+playerName+'</span>'
+      card.appendChild(hdr)
+
+      const grid = document.createElement("div")
+      grid.className = "ticket"
+      for(let r = 0; r < 3; r++){
+        for(let c = 0; c < 9; c++){
+          const cell = document.createElement("div")
+          const val  = ticket[r][c]
+          if(val !== 0){
+            cell.className = "cell" + (markedNumbers.includes(val) ? " marked" : "")
+            cell.innerText = val
+            cell.id = "allcell_"+num+"_"+val
+          } else {
+            cell.className = "cell empty"
+          }
+          grid.appendChild(cell)
+        }
+      }
+      card.appendChild(grid)
+      list.appendChild(card)
+    })
+
     updateInfo(infoId)
     return
   }
 
-  bookedEntries.forEach(([tNum, playerName]) => {
-    const num = parseInt(tNum)
-    if(!ticketSheets.length) return
-    const ticket = ticketSheets[Math.floor((num-1)/6)][(num-1)%6]
-    if(!ticket) return
-
-    const card = document.createElement("div")
-    card.id = "allcard"+num
-    card.className = "ticketCard"
-    card.style.cssText = "margin-bottom:12px;padding:14px 16px;"
-
-    // Header — same style as myTickets
-    const hdr = document.createElement("div")
-    hdr.className = "ticket-header"
-    hdr.innerHTML =
-      '<span class="ticket-label">🎟 Ticket #<strong>'+num+'</strong>'
-      +' &nbsp;·&nbsp; Sheet '+(Math.floor((num-1)/6)+1)+'</span>'
-      +'<span class="ticket-name">✅ '+playerName+'</span>'
-    card.appendChild(hdr)
-
-    // Real ticket grid
-    const grid = document.createElement("div")
-    grid.className = "ticket"
-    for(let r = 0; r < 3; r++){
-      for(let c = 0; c < 9; c++){
-        const cell = document.createElement("div")
-        const val  = ticket[r][c]
-        if(val !== 0){
-          cell.className = "cell" + (markedNumbers.includes(val) ? " marked" : "")
-          cell.innerText = val
-          cell.id = "allcell_"+num+"_"+val
-        } else {
-          cell.className = "cell empty"
-        }
-        grid.appendChild(cell)
-      }
+  // ── BOOKING / COUNTDOWN SCREENS: all tickets as clickable buttons ──
+  const totalSheets = Math.ceil(totalTickets / 6)
+  for(let s = 0; s < totalSheets; s++){
+    const block = document.createElement("div")
+    block.className = "sheetBlock"
+    const label = document.createElement("div")
+    label.className = "sheetLabel"
+    label.innerText = "Sheet "+(s+1)+"  —  Tickets "+(s*6+1)+" to "+Math.min(s*6+6, totalTickets)
+    block.appendChild(label)
+    const row = document.createElement("div")
+    row.className = "sheetRow"
+    for(let t = 0; t < 6; t++){
+      const num = s*6+t+1
+      if(num > totalTickets) break
+      const btn     = document.createElement("div")
+      btn.id        = "tbtn"+num
+      btn.innerText = num
+      btn.className = getTicketClass(num)
+      btn.onclick   = () => ticketClicked(num)
+      row.appendChild(btn)
     }
-    card.appendChild(grid)
-    list.appendChild(card)
-  })
-
+    block.appendChild(row)
+    list.appendChild(block)
+  }
   updateInfo(infoId)
 }
 
@@ -444,11 +474,9 @@ function searchAndScroll(){
     .sort((a,b) => parseInt(a[0]) - parseInt(b[0]))
 
   if(matches.length > 0){
-    // Scroll to first matched card
     const firstCard = document.getElementById("allcard"+matches[0][0])
     if(firstCard){
       firstCard.scrollIntoView({ behavior:"smooth", block:"center" })
-      // Flash gold highlight on all matched cards
       matches.forEach(([tNum]) => {
         const card = document.getElementById("allcard"+tNum)
         if(!card) return
@@ -683,7 +711,7 @@ socket.on("ticketBooked", ({ ticketNum, playerName }) => {
   if(previewTicketNum===ticketNum) previewTicket(ticketNum)
   showMyTickets()
 
-  // Rebuild all booked tickets list live
+  // Rebuild all booked tickets list live on game screen
   if(currentScreen === "gameScreen") buildTicketList("ticketList","ticketInfo")
 })
 
