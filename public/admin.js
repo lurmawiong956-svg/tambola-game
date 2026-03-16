@@ -458,6 +458,50 @@ socket.on("prizeClaimed", ({ticketNum,playerName,prize}) => {
   } catch(e){}
 })
 
+/* ── SHARE BOOKINGS AS PDF ── */
+function shareBookingsPDF(){
+  if(Object.keys(confirmedBookings).length === 0){ alert("No confirmed bookings yet"); return }
+
+  const entries = Object.entries(confirmedBookings).sort((a,b)=>parseInt(a[0])-parseInt(b[0]))
+  let html = `<!DOCTYPE html><html><head><title>Tambola Bookings</title>
+  <style>
+    body{font-family:Arial,sans-serif;padding:24px;max-width:700px;margin:0 auto;}
+    h2{text-align:center;margin-bottom:4px;}
+    p{text-align:center;color:#666;margin-bottom:16px;font-size:13px;}
+    table{width:100%;border-collapse:collapse;}
+    th{background:#1976d2;color:white;padding:9px 12px;text-align:left;font-size:13px;}
+    td{padding:8px 12px;border-bottom:1px solid #eee;font-size:13px;}
+    tr:nth-child(even){background:#f5f5f5;}
+    @media print{button{display:none!important;}}
+  </style></head><body>
+  <h2>🎱 Tambola — Confirmed Bookings</h2>
+  <p>${entries.length} tickets booked &nbsp;·&nbsp; ${new Date().toLocaleDateString()}</p>
+  <table>
+    <thead><tr><th>#</th><th>Ticket</th><th>Sheet</th><th>Player Name</th></tr></thead>
+    <tbody>`
+
+  entries.forEach(([num, name], i) => {
+    const sheet = Math.floor((num-1)/6)+1
+    html += `<tr>
+      <td>${i+1}</td>
+      <td><strong>#${num}</strong></td>
+      <td>Sheet ${sheet}</td>
+      <td>${name}</td>
+    </tr>`
+  })
+
+  html += `</tbody></table>
+  <div style="text-align:center;margin-top:20px;">
+    <button onclick="window.print()" style="padding:10px 24px;font-size:15px;background:#1976d2;color:white;border:none;border-radius:6px;cursor:pointer;">🖨️ Print / Save PDF</button>
+    <button onclick="window.close()" style="padding:10px 24px;font-size:15px;background:#888;color:white;border:none;border-radius:6px;cursor:pointer;margin-left:8px;">✖ Close</button>
+  </div>
+  </body></html>`
+
+  const win = window.open('','_blank','width=750,height=900')
+  win.document.write(html)
+  win.document.close()
+}
+
 /* ── DOWNLOAD WINNERS ── */
 function downloadWinners(){
   if(winnersList.length===0){ alert("No winners yet"); return }
