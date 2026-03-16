@@ -467,39 +467,47 @@ function searchAndScroll(){
   const query = document.getElementById("searchInput").value.trim().toLowerCase()
   const resultsEl = document.getElementById("searchResults")
   if(resultsEl) resultsEl.innerHTML = ""
-  if(!query) return
+
+  // Show all cards if query empty
+  if(!query){
+    document.querySelectorAll('[id^="allcard"]').forEach(card => {
+      card.style.display = ""
+      card.style.boxShadow = ""
+    })
+    return
+  }
 
   const matches = Object.entries(bookedTickets)
     .filter(([,name]) => name.toLowerCase().includes(query))
-    .sort((a,b) => parseInt(a[0]) - parseInt(b[0]))
+    .map(([tNum]) => "allcard"+tNum)
 
-  if(matches.length > 0){
-    const firstCard = document.getElementById("allcard"+matches[0][0])
-    if(firstCard){
-      firstCard.scrollIntoView({ behavior:"smooth", block:"center" })
-      matches.forEach(([tNum]) => {
-        const card = document.getElementById("allcard"+tNum)
-        if(!card) return
-        card.style.transition = "box-shadow 0.2s"
-        card.style.boxShadow = "0 0 0 3px #ffcc80, 0 8px 32px rgba(0,0,0,0.4)"
-        setTimeout(() => { card.style.boxShadow = "" }, 2500)
-      })
+  // Hide non-matching, show matching
+  document.querySelectorAll('[id^="allcard"]').forEach(card => {
+    if(matches.includes(card.id)){
+      card.style.display = ""
+      card.style.boxShadow = "0 0 0 3px #ffcc80, 0 8px 32px rgba(0,0,0,0.4)"
+    } else {
+      card.style.display = "none"
     }
+  })
+
+  // Scroll to first match
+  if(matches.length > 0){
+    const firstCard = document.getElementById(matches[0])
+    if(firstCard) firstCard.scrollIntoView({ behavior:"smooth", block:"center" })
   } else {
     if(resultsEl) resultsEl.innerHTML =
       '<p style="color:rgba(255,255,255,0.4);font-size:14px;padding:8px;">No tickets found for "'+query+'"</p>'
   }
 }
 
-function searchTickets(){
-  searchAndScroll()
-}
-
 function clearSearch(){
   document.getElementById("searchInput").value = ""
   const resultsEl = document.getElementById("searchResults")
   if(resultsEl) resultsEl.innerHTML = ""
+  // Show all cards again
   document.querySelectorAll('[id^="allcard"]').forEach(card => {
+    card.style.display = ""
     card.style.boxShadow = ""
   })
 }
