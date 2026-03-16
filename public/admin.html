@@ -112,12 +112,17 @@
 
     <!-- Confirmed Bookings -->
     <div id="bookedSection">
-      <h2>✅ Confirmed Bookings <span id="bookedCount" style="font-size:14px;color:#a5d6a7;margin-left:8px;">0</span></h2>
+      <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:10px;">
+        <h2 style="margin:0;">✅ Confirmed Bookings <span id="bookedCount" style="font-size:14px;color:#a5d6a7;margin-left:8px;">0</span></h2>
+        <button onclick="shareBookingsPDF()" style="font-size:12px;padding:5px 12px;background:linear-gradient(135deg,#e53935,#b71c1c);">📄 PDF</button>
+      </div>
       <p id="noBookings">No confirmed bookings yet</p>
-      <table class="holdTable" id="bookedTable" style="display:none">
-        <thead><tr><th>Ticket</th><th>Sheet</th><th>Player Name</th></tr></thead>
-        <tbody id="bookedTableBody"></tbody>
-      </table>
+      <div style="max-height:220px;overflow-y:auto;border-radius:10px;">
+        <table class="holdTable" id="bookedTable" style="display:none">
+          <thead><tr><th>Ticket</th><th>Sheet</th><th>Player Name</th></tr></thead>
+          <tbody id="bookedTableBody"></tbody>
+        </table>
+      </div>
     </div>
 
     <!-- Active Prize Toggles -->
