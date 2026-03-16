@@ -48,36 +48,63 @@ function createBoard(){
 }
 
 /* ════════════════════════════════
-   TICKET LIST
-   listId / infoId = which screen's elements to populate
+   TICKET LIST — only booked tickets, real ticket cards
    ════════════════════════════════ */
 function buildTicketList(listId, infoId){
   const list = document.getElementById(listId)
   if(!list || !totalTickets) return
   list.innerHTML = ""
-  const totalSheets = Math.ceil(totalTickets / 6)
-  for(let s = 0; s < totalSheets; s++){
-    const block = document.createElement("div")
-    block.className = "sheetBlock"
-    const label = document.createElement("div")
-    label.className = "sheetLabel"
-    label.innerText = "Sheet "+(s+1)+"  —  Tickets "+(s*6+1)+" to "+Math.min(s*6+6, totalTickets)
-    block.appendChild(label)
-    const row = document.createElement("div")
-    row.className = "sheetRow"
-    for(let t = 0; t < 6; t++){
-      const num = s*6+t+1
-      if(num > totalTickets) break
-      const btn     = document.createElement("div")
-      btn.id        = "tbtn"+num
-      btn.innerText = num
-      btn.className = getTicketClass(num)
-      btn.onclick   = () => ticketClicked(num)
-      row.appendChild(btn)
-    }
-    block.appendChild(row)
-    list.appendChild(block)
+
+  const bookedEntries = Object.entries(bookedTickets)
+    .sort((a,b) => parseInt(a[0]) - parseInt(b[0]))
+
+  if(bookedEntries.length === 0){
+    list.innerHTML = '<p style="color:rgba(255,255,255,0.4);font-size:13px;padding:16px;">No tickets booked yet</p>'
+    updateInfo(infoId)
+    return
   }
+
+  bookedEntries.forEach(([tNum, playerName]) => {
+    const num = parseInt(tNum)
+    if(!ticketSheets.length) return
+    const ticket = ticketSheets[Math.floor((num-1)/6)][(num-1)%6]
+    if(!ticket) return
+
+    const card = document.createElement("div")
+    card.id = "allcard"+num
+    card.className = "ticketCard"
+    card.style.cssText = "margin-bottom:12px;padding:14px 16px;"
+
+    // Header — same style as myTickets
+    const hdr = document.createElement("div")
+    hdr.className = "ticket-header"
+    hdr.innerHTML =
+      '<span class="ticket-label">🎟 Ticket #<strong>'+num+'</strong>'
+      +' &nbsp;·&nbsp; Sheet '+(Math.floor((num-1)/6)+1)+'</span>'
+      +'<span class="ticket-name">✅ '+playerName+'</span>'
+    card.appendChild(hdr)
+
+    // Real ticket grid
+    const grid = document.createElement("div")
+    grid.className = "ticket"
+    for(let r = 0; r < 3; r++){
+      for(let c = 0; c < 9; c++){
+        const cell = document.createElement("div")
+        const val  = ticket[r][c]
+        if(val !== 0){
+          cell.className = "cell" + (markedNumbers.includes(val) ? " marked" : "")
+          cell.innerText = val
+          cell.id = "allcell_"+num+"_"+val
+        } else {
+          cell.className = "cell empty"
+        }
+        grid.appendChild(cell)
+      }
+    }
+    card.appendChild(grid)
+    list.appendChild(card)
+  })
+
   updateInfo(infoId)
 }
 
@@ -167,10 +194,9 @@ function ticketClicked(num){
 }
 
 /* ════════════════════════════════
-   PREVIEW (game screen only)
+   PREVIEW
    ════════════════════════════════ */
 function previewTicket(num){
-  // Pick the right preview area based on current screen
   const areaMap = {
     "bookingScreen":   "ticketPreviewAreaPre",
     "countdownScreen": "ticketPreviewAreaCd",
@@ -222,16 +248,12 @@ function previewTicket(num){
 /* ════════════════════════════════
    BOOK
    ════════════════════════════════ */
-/* ════════════════════════════════
-   GET MY NAME — from any name input
-   ════════════════════════════════ */
 function getMyName(){
   const ids = ["playerName","playerNamePre","playerNameCd"]
   for(const id of ids){
     const el = document.getElementById(id)
     if(el && el.value.trim()) return el.value.trim()
   }
-  // Also check if any of myBookedTickets has a name
   if(myBookedTickets.length) return bookedTickets[myBookedTickets[0]] || ""
   if(myHeldTickets.length)   return onHoldTickets[myHeldTickets[0]] || ""
   return ""
@@ -274,7 +296,7 @@ function clearSelection(){
 }
 
 /* ════════════════════════════════
-   MY TICKETS — show in current screen
+   MY TICKETS
    ════════════════════════════════ */
 function showMyTickets(){
   const hasAny = myBookedTickets.length > 0 || myHeldTickets.length > 0
@@ -357,10 +379,8 @@ function startCountdown(st){
 function goLive(){
   unlockAudio()
   showScreen("gameScreen")
-  // Build ticket list in game screen
   buildTicketList("ticketList","ticketInfo")
   createBoard()
-  // Mark already-called numbers on board for late joiners
   markedNumbers.forEach(n => {
     const b = document.getElementById("b"+n)
     if(b) b.classList.add("called")
@@ -411,80 +431,60 @@ function printMyTickets(){
 }
 
 /* ════════════════════════════════
-   SEARCH
+   SEARCH — scrolls directly to real ticket card
    ════════════════════════════════ */
 function searchAndScroll(){
   const query = document.getElementById("searchInput").value.trim().toLowerCase()
-  if(!query){ document.getElementById("searchResults").innerHTML = ""; return }
+  const resultsEl = document.getElementById("searchResults")
+  if(resultsEl) resultsEl.innerHTML = ""
+  if(!query) return
 
-  // Search bookedTickets and onHoldTickets by name
-  const matchTickets = [
-    ...Object.entries(bookedTickets).filter(([,n])=>n.toLowerCase().includes(query)).map(([t,n])=>({ticketNum:+t,name:n,held:false})),
-    ...Object.entries(onHoldTickets).filter(([,n])=>n.toLowerCase().includes(query)).map(([t,n])=>({ticketNum:+t,name:n,held:true}))
-  ]
+  const matches = Object.entries(bookedTickets)
+    .filter(([,name]) => name.toLowerCase().includes(query))
+    .sort((a,b) => parseInt(a[0]) - parseInt(b[0]))
 
-  // Highlight matched ticket buttons in the list and scroll to first one
-  if(matchTickets.length > 0){
-    const firstTicket = matchTickets[0].ticketNum
-    const btn = document.getElementById("tbtn"+firstTicket)
-    if(btn){
-      btn.scrollIntoView({ behavior:"smooth", block:"center" })
-      // Flash highlight
-      const orig = btn.className
-      btn.style.outline = "3px solid #ffcc80"
-      btn.style.outlineOffset = "2px"
-      setTimeout(()=>{ btn.style.outline=""; btn.style.outlineOffset="" }, 2000)
+  if(matches.length > 0){
+    // Scroll to first matched card
+    const firstCard = document.getElementById("allcard"+matches[0][0])
+    if(firstCard){
+      firstCard.scrollIntoView({ behavior:"smooth", block:"center" })
+      // Flash gold highlight on all matched cards
+      matches.forEach(([tNum]) => {
+        const card = document.getElementById("allcard"+tNum)
+        if(!card) return
+        card.style.transition = "box-shadow 0.2s"
+        card.style.boxShadow = "0 0 0 3px #ffcc80, 0 8px 32px rgba(0,0,0,0.4)"
+        setTimeout(() => { card.style.boxShadow = "" }, 2500)
+      })
     }
+  } else {
+    if(resultsEl) resultsEl.innerHTML =
+      '<p style="color:rgba(255,255,255,0.4);font-size:14px;padding:8px;">No tickets found for "'+query+'"</p>'
   }
-
-  // Also show search results below
-  searchTickets()
 }
 
 function searchTickets(){
-  const query   = document.getElementById("searchInput").value.trim().toLowerCase()
-  const results = document.getElementById("searchResults")
-  results.innerHTML = ""
-  if(!query) return
-  const matches = Object.entries(bookedTickets).filter(([,n])=>n.toLowerCase().includes(query)).sort((a,b)=>+a[0]-+b[0])
-  const holds   = Object.entries(onHoldTickets).filter(([,n])=>n.toLowerCase().includes(query)).sort((a,b)=>+a[0]-+b[0])
-  if(!matches.length && !holds.length){
-    results.innerHTML = '<p style="color:rgba(255,255,255,0.4);padding:16px;font-size:14px;">No tickets found for "'+query+'"</p>'; return
-  }
-  ;[...matches.map(([n,nm])=>({num:+n,name:nm,held:false})), ...holds.map(([n,nm])=>({num:+n,name:nm,held:true}))].forEach(({num,name,held})=>{
-    const card = document.createElement("div"); card.className="ticketCard"; card.style.marginBottom="14px"
-    const hdr  = document.createElement("div"); hdr.className="ticket-header"
-    if(held) hdr.style.background="linear-gradient(135deg,#f57f17,#e65100)"
-    hdr.innerHTML='<span class="ticket-label">🎟 #<strong>'+num+'</strong> · Sheet '+(Math.floor((num-1)/6)+1)+'</span>'
-      +(held?'<span class="ticket-name">⏳ '+name+'</span>':'<span class="ticket-name">✅ '+name+'</span>')
-    card.appendChild(hdr)
-    if(ticketSheets.length) renderMiniTicket(card, num)
-    results.appendChild(card)
+  searchAndScroll()
+}
+
+function clearSearch(){
+  document.getElementById("searchInput").value = ""
+  const resultsEl = document.getElementById("searchResults")
+  if(resultsEl) resultsEl.innerHTML = ""
+  document.querySelectorAll('[id^="allcard"]').forEach(card => {
+    card.style.boxShadow = ""
   })
 }
-function clearSearch(){
-  document.getElementById("searchInput").value=""
-  document.getElementById("searchResults").innerHTML=""
-  // Remove any highlights
-  document.querySelectorAll(".ticketButton").forEach(b=>{ b.style.outline=""; b.style.outlineOffset="" })
-}
 
 /* ════════════════════════════════
-   SHARE WINNERS (player)
+   WINNERS LIST
    ════════════════════════════════ */
-let playerWinnersStore = []  // { prize, playerName, ticketNum }
+let playerWinnersStore = []
 
-/* ════════════════════════════════
-   ADD TO WINNERS LIST
-   ════════════════════════════════ */
 function addToWinnersList(prize, playerName, ticketNum){
   ticketNum = parseInt(ticketNum)
-
-  // Avoid duplicates
   const exists = playerWinnersStore.find(w => w.prize===prize && w.ticketNum===ticketNum)
   if(exists) return
-
-  // Store for sharing
   playerWinnersStore.push({ prize, playerName, ticketNum })
 
   const sheet = Math.floor((ticketNum-1)/6)+1
@@ -523,7 +523,6 @@ function viewWinnerTicket(ticketNum){
   const playerName = bookedTickets[ticketNum] || ""
   const sheet      = sheetIdx+1
 
-  // Build popup overlay
   const old = document.getElementById("winnerTicketPopup")
   if(old) old.remove()
 
@@ -537,7 +536,6 @@ function viewWinnerTicket(ticketNum){
   card.style.cssText = "background:white;border-radius:16px;padding:20px;max-width:520px;width:100%;"
     + "box-shadow:0 8px 40px rgba(0,0,0,0.5);"
 
-  // Header
   const hdr = document.createElement("div")
   hdr.style.cssText = "display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;"
     + "padding:10px 14px;background:linear-gradient(135deg,#1976d2,#0d47a1);border-radius:10px;color:white;"
@@ -545,7 +543,6 @@ function viewWinnerTicket(ticketNum){
     + '<span style="font-size:14px;color:#ffeb3b;font-weight:600;">'+playerName+'</span>'
   card.appendChild(hdr)
 
-  // Grid
   const grid = document.createElement("div")
   grid.style.cssText = "display:grid;grid-template-columns:repeat(9,1fr);gap:4px;"
   for(let r=0;r<3;r++){
@@ -566,7 +563,6 @@ function viewWinnerTicket(ticketNum){
   }
   card.appendChild(grid)
 
-  // Close button
   const closeBtn = document.createElement("button")
   closeBtn.innerText = "✖ Close"
   closeBtn.style.cssText = "margin-top:14px;width:100%;padding:10px;font-size:14px;background:#1976d2;"
@@ -607,7 +603,7 @@ function showToast(msg){
 }
 
 /* ════════════════════════════════
-   SOCKET — GAME STARTED (tickets ready, no timer)
+   SOCKET — GAME STARTED
    ════════════════════════════════ */
 socket.on("gameStarted", (data) => {
   totalTickets     = parseInt(data.totalTickets) || 0
@@ -621,33 +617,27 @@ socket.on("gameStarted", (data) => {
   const now = Date.now()
 
   if(startTime && now < startTime){
-    // Countdown still running
     showScreen("countdownScreen")
     buildTicketList("ticketListCd","ticketInfoCd")
     startCountdown(startTime)
   } else if(data.calledNumbers && data.calledNumbers.length > 0){
-    // Game already live — numbers have been called
     goLive()
   } else if(startTime && now >= startTime){
-    // Countdown just ended, game live
     goLive()
   } else {
-    // Game ready but not started yet — show booking screen
     showScreen("bookingScreen")
     buildTicketList("ticketListPre","ticketInfoPre")
   }
 })
 
 /* ════════════════════════════════
-   SOCKET — GAME COUNTDOWN (admin clicked Start Game)
+   SOCKET — GAME COUNTDOWN
    ════════════════════════════════ */
 socket.on("gameCountdown", ({ startTime: st, activePrizes }) => {
   startTime = st
   activePrizeKeys = activePrizes && activePrizes.length > 0 ? activePrizes : null
-  // Move to countdown screen, carry over ticket list
   showScreen("countdownScreen")
   buildTicketList("ticketListCd","ticketInfoCd")
-  // Restore any existing selections/bookings
   refreshTicketButtons()
   updateSelectionPanel()
   showMyTickets()
@@ -672,7 +662,7 @@ socket.on("holdFailed", (failedList) => {
 })
 
 /* ════════════════════════════════
-   SOCKET — TICKET BOOKED (admin confirmed)
+   SOCKET — TICKET BOOKED
    ════════════════════════════════ */
 socket.on("ticketBooked", ({ ticketNum, playerName }) => {
   bookedTickets[ticketNum] = playerName
@@ -682,7 +672,6 @@ socket.on("ticketBooked", ({ ticketNum, playerName }) => {
   if(isMyTicket){
     myHeldTickets = myHeldTickets.filter(t=>t!==ticketNum)
   }
-  // Track as mine if I held it OR if the name matches what I typed
   const myName = getMyName()
   if((isMyTicket || (myName && myName.toLowerCase()===playerName.toLowerCase()))
      && !myBookedTickets.includes(ticketNum)){
@@ -693,7 +682,9 @@ socket.on("ticketBooked", ({ ticketNum, playerName }) => {
   refreshTicketButtons(); updateAllInfo()
   if(previewTicketNum===ticketNum) previewTicket(ticketNum)
   showMyTickets()
-  // Re-run prize check handled server-side
+
+  // Rebuild all booked tickets list live
+  if(currentScreen === "gameScreen") buildTicketList("ticketList","ticketInfo")
 })
 
 socket.on("holdRemoved", (ticketNum) => {
@@ -713,102 +704,41 @@ socket.on("yourHoldReleased", (ticketNum) => {
    NUMBER COMMENTARY
    ════════════════════════════════ */
 const NUMBER_CALLS = {
-  1:  "Number 1 — Kelly's Eye!",
-  2:  "Number 2 — One Little Duck!",
-  3:  "Number 3 — Cup of Tea!",
-  4:  "Number 4 — Knock at the Door!",
-  5:  "Number 5 — Man Alive!",
-  6:  "Number 6 — Tom Mix!",
-  7:  "Number 7 — Lucky Seven!",
-  8:  "Number 8 — One Fat Lady!",
-  9:  "Number 9 — Doctor's Orders!",
-  10: "Number 10 — (Prime) Minister's Den!",
-  11: "Number 11 — Legs Eleven!",
-  12: "Number 12 — One Dozen!",
-  13: "Number 13 — Unlucky for Some!",
-  14: "Number 14 — Valentine's Day!",
-  15: "Number 15 — Young and Keen!",
-  16: "Number 16 — Sweet Sixteen!",
-  17: "Number 17 — Dancing Queen!",
-  18: "Number 18 — Coming of Age!",
-  19: "Number 19 — Goodbye Teens!",
-  20: "Number 20 — One Score!",
-  21: "Number 21 — Key of the Door!",
-  22: "Number 22 — Two Little Ducks!",
-  23: "Number 23 — The Lord is My Shepherd!",
-  24: "Number 24 — Two Dozen!",
-  25: "Number 25 — Duck and Dive!",
-  26: "Number 26 — Half a Crown!",
-  27: "Number 27 — Gateway to Heaven!",
-  28: "Number 28 — Over Weight!",
-  29: "Number 29 — Rise and Shine!",
-  30: "Number 30 — Dirty Gertie!",
-  31: "Number 31 — Get Up and Run!",
-  32: "Number 32 — Buckle My Shoe!",
-  33: "Number 33 — Dirty Knee!",
-  34: "Number 34 — Ask for More!",
-  35: "Number 35 — Jump and Jive!",
-  36: "Number 36 — Three Dozen!",
-  37: "Number 37 — More than Eleven!",
-  38: "Number 38 — Christmas Cake!",
-  39: "Number 39 — Steps!",
-  40: "Number 40 — Life Begins!",
-  41: "Number 41 — Time for Fun!",
-  42: "Number 42 — Winnie the Pooh!",
-  43: "Number 43 — Down on Your Knees!",
-  44: "Number 44 — Droopy Drawers!",
-  45: "Number 45 — Halfway There!",
-  46: "Number 46 — Up to Tricks!",
-  47: "Number 47 — Four and Seven!",
-  48: "Number 48 — Four Dozen!",
-  49: "Number 49 — PC!",
-  50: "Number 50 — Half a Century!",
-  51: "Number 51 — Tweak of the Thumb!",
-  52: "Number 52 — Danny La Rue!",
-  53: "Number 53 — Stuck in a Tree!",
-  54: "Number 54 — Clean the Floor!",
-  55: "Number 55 — Snakes Alive!",
-  56: "Number 56 — Was She Worth It?",
-  57: "Number 57 — Heinz Varieties!",
-  58: "Number 58 — Make Them Wait!",
-  59: "Number 59 — Brighton Line!",
-  60: "Number 60 — Five Dozen!",
-  61: "Number 61 — Baker's Bun!",
-  62: "Number 62 — Turn the Screw!",
-  63: "Number 63 — Tickle Me!",
-  64: "Number 64 — Red Raw!",
-  65: "Number 65 — Old Age Pension!",
-  66: "Number 66 — Clickety Click!",
-  67: "Number 67 — Made in Heaven!",
-  68: "Number 68 — Saving Grace!",
-  69: "Number 69 — Either Way Up!",
-  70: "Number 70 — Three Score and Ten!",
-  71: "Number 71 — Bang on the Drum!",
-  72: "Number 72 — Six Dozen!",
-  73: "Number 73 — Queen Bee!",
-  74: "Number 74 — Hit the Floor!",
-  75: "Number 75 — Strive and Strive!",
-  76: "Number 76 — Trombones!",
-  77: "Number 77 — Sunset Strip!",
-  78: "Number 78 — Heaven's Gate!",
-  79: "Number 79 — One More Time!",
-  80: "Number 80 — Eight and Blank!",
-  81: "Number 81 — Stop and Run!",
-  82: "Number 82 — Straight On Through!",
-  83: "Number 83 — Time for Tea!",
-  84: "Number 84 — Seven Dozen!",
-  85: "Number 85 — Staying Alive!",
-  86: "Number 86 — Between the Sticks!",
-  87: "Number 87 — Torquay in Devon!",
-  88: "Number 88 — Two Fat Ladies!",
-  89: "Number 89 — Nearly There!",
-  90: "Number 90 — Top of the Shop!"
+  1:"Number 1 — Kelly's Eye!",2:"Number 2 — One Little Duck!",3:"Number 3 — Cup of Tea!",
+  4:"Number 4 — Knock at the Door!",5:"Number 5 — Man Alive!",6:"Number 6 — Tom Mix!",
+  7:"Number 7 — Lucky Seven!",8:"Number 8 — One Fat Lady!",9:"Number 9 — Doctor's Orders!",
+  10:"Number 10 — Minister's Den!",11:"Number 11 — Legs Eleven!",12:"Number 12 — One Dozen!",
+  13:"Number 13 — Unlucky for Some!",14:"Number 14 — Valentine's Day!",15:"Number 15 — Young and Keen!",
+  16:"Number 16 — Sweet Sixteen!",17:"Number 17 — Dancing Queen!",18:"Number 18 — Coming of Age!",
+  19:"Number 19 — Goodbye Teens!",20:"Number 20 — One Score!",21:"Number 21 — Key of the Door!",
+  22:"Number 22 — Two Little Ducks!",23:"Number 23 — The Lord is My Shepherd!",24:"Number 24 — Two Dozen!",
+  25:"Number 25 — Duck and Dive!",26:"Number 26 — Half a Crown!",27:"Number 27 — Gateway to Heaven!",
+  28:"Number 28 — Over Weight!",29:"Number 29 — Rise and Shine!",30:"Number 30 — Dirty Gertie!",
+  31:"Number 31 — Get Up and Run!",32:"Number 32 — Buckle My Shoe!",33:"Number 33 — Dirty Knee!",
+  34:"Number 34 — Ask for More!",35:"Number 35 — Jump and Jive!",36:"Number 36 — Three Dozen!",
+  37:"Number 37 — More than Eleven!",38:"Number 38 — Christmas Cake!",39:"Number 39 — Steps!",
+  40:"Number 40 — Life Begins!",41:"Number 41 — Time for Fun!",42:"Number 42 — Winnie the Pooh!",
+  43:"Number 43 — Down on Your Knees!",44:"Number 44 — Droopy Drawers!",45:"Number 45 — Halfway There!",
+  46:"Number 46 — Up to Tricks!",47:"Number 47 — Four and Seven!",48:"Number 48 — Four Dozen!",
+  49:"Number 49 — PC!",50:"Number 50 — Half a Century!",51:"Number 51 — Tweak of the Thumb!",
+  52:"Number 52 — Danny La Rue!",53:"Number 53 — Stuck in a Tree!",54:"Number 54 — Clean the Floor!",
+  55:"Number 55 — Snakes Alive!",56:"Number 56 — Was She Worth It?",57:"Number 57 — Heinz Varieties!",
+  58:"Number 58 — Make Them Wait!",59:"Number 59 — Brighton Line!",60:"Number 60 — Five Dozen!",
+  61:"Number 61 — Baker's Bun!",62:"Number 62 — Turn the Screw!",63:"Number 63 — Tickle Me!",
+  64:"Number 64 — Red Raw!",65:"Number 65 — Old Age Pension!",66:"Number 66 — Clickety Click!",
+  67:"Number 67 — Made in Heaven!",68:"Number 68 — Saving Grace!",69:"Number 69 — Either Way Up!",
+  70:"Number 70 — Three Score and Ten!",71:"Number 71 — Bang on the Drum!",72:"Number 72 — Six Dozen!",
+  73:"Number 73 — Queen Bee!",74:"Number 74 — Hit the Floor!",75:"Number 75 — Strive and Strive!",
+  76:"Number 76 — Trombones!",77:"Number 77 — Sunset Strip!",78:"Number 78 — Heaven's Gate!",
+  79:"Number 79 — One More Time!",80:"Number 80 — Eight and Blank!",81:"Number 81 — Stop and Run!",
+  82:"Number 82 — Straight On Through!",83:"Number 83 — Time for Tea!",84:"Number 84 — Seven Dozen!",
+  85:"Number 85 — Staying Alive!",86:"Number 86 — Between the Sticks!",87:"Number 87 — Torquay in Devon!",
+  88:"Number 88 — Two Fat Ladies!",89:"Number 89 — Nearly There!",90:"Number 90 — Top of the Shop!"
 }
 
 let audioUnlocked = false
 let audioEnabled  = true
 
-// Unlock audio on first ANY user interaction
 ;["click","touchstart","keydown"].forEach(evt => {
   document.addEventListener(evt, function onFirst(){
     unlockAudio()
@@ -817,7 +747,7 @@ let audioEnabled  = true
 })
 
 function toggleAudioCommentary(){
-  unlockAudio()  // always unlock on button click
+  unlockAudio()
   audioEnabled = !audioEnabled
   const btn = document.getElementById("audioBtn")
   if(btn) btn.innerText = audioEnabled ? "🔊 Audio: ON" : "🔇 Audio: OFF"
@@ -825,7 +755,6 @@ function toggleAudioCommentary(){
 
 function unlockAudio(){
   if(audioUnlocked) return
-  // Speak a silent utterance to unlock the speech API
   if(window.speechSynthesis){
     const u = new SpeechSynthesisUtterance("")
     u.volume = 0
@@ -843,7 +772,6 @@ function announceNumber(num){
   utter.rate   = 0.85
   utter.pitch  = 1.0
   utter.volume = 1.0
-  // Wait for voices to load if needed
   const trySpeak = () => {
     const voices = window.speechSynthesis.getVoices()
     const preferred = voices.find(v =>
@@ -852,11 +780,8 @@ function announceNumber(num){
     if(preferred) utter.voice = preferred
     window.speechSynthesis.speak(utter)
   }
-  if(window.speechSynthesis.getVoices().length > 0){
-    trySpeak()
-  } else {
-    window.speechSynthesis.onvoiceschanged = trySpeak
-  }
+  if(window.speechSynthesis.getVoices().length > 0) trySpeak()
+  else window.speechSynthesis.onvoiceschanged = trySpeak
 }
 
 /* ════════════════════════════════
@@ -867,18 +792,24 @@ socket.on("numberCalled", (number) => {
   if(el) el.innerText = number
   markedNumbers.push(number)
 
-  // Audio commentary
   announceNumber(number)
 
   // Mark on called numbers board
   const b = document.getElementById("b"+number); if(b) b.classList.add("called")
 
-  // Mark on ticket preview (any screen)
+  // Mark on ticket preview
   const t = document.getElementById("t"+number); if(t) t.classList.add("marked")
 
-  // Mark on ALL mini ticket cells (my booked + search results)
+  // Mark on my tickets mini cells
   document.querySelectorAll('[id$="c'+number+'"]').forEach(cell => {
     if(cell.id.startsWith("mt")) cell.classList.add("marked")
+  })
+
+  // Mark on all booked ticket cards
+  document.querySelectorAll('[id^="allcell_"]').forEach(cell => {
+    const parts = cell.id.split("_")
+    const cellVal = parseInt(parts[parts.length - 1])
+    if(cellVal === number) cell.classList.add("marked")
   })
 })
 
@@ -902,141 +833,27 @@ socket.on("resetGame", () => {
    PRIZE DEFINITIONS
    ════════════════════════════════ */
 const PRIZES = [
-  {
-    key: "earlyFive",
-    label: "🚀 Early Five",
-    desc: "First 5 numbers marked on ticket",
-    multi: false,
-    check: (t) => {
-      let c=0; t.forEach(r=>r.forEach(n=>{if(n!==0&&markedNumbers.includes(n))c++})); return c>=5
-    }
-  },
-  {
-    key: "earlySeven",
-    label: "7️⃣ Early Seven",
-    desc: "First 7 numbers marked on ticket",
-    multi: false,
-    check: (t) => {
-      let c=0; t.forEach(r=>r.forEach(n=>{if(n!==0&&markedNumbers.includes(n))c++})); return c>=7
-    }
-  },
-  {
-    key: "topLine",
-    label: "🏆 Top Line",
-    desc: "All numbers in top row",
-    multi: false,
-    check: (t) => t[0].filter(n=>n!==0).every(n=>markedNumbers.includes(n))
-  },
-  {
-    key: "middleLine",
-    label: "🥈 Middle Line",
-    desc: "All numbers in middle row",
-    multi: false,
-    check: (t) => t[1].filter(n=>n!==0).every(n=>markedNumbers.includes(n))
-  },
-  {
-    key: "bottomLine",
-    label: "🥉 Bottom Line",
-    desc: "All numbers in bottom row",
-    multi: false,
-    check: (t) => t[2].filter(n=>n!==0).every(n=>markedNumbers.includes(n))
-  },
-  {
-    key: "corners",
-    label: "🔲 Four Corners",
-    desc: "First & last number of top and bottom rows",
-    multi: false,
-    check: (t) => {
-      const top=t[0].filter(n=>n!==0), bot=t[2].filter(n=>n!==0)
-      return [top[0],top[top.length-1],bot[0],bot[bot.length-1]].every(n=>markedNumbers.includes(n))
-    }
-  },
-  {
-    key: "star",
-    label: "⭐ Star",
-    desc: "Four corners + centre number",
-    multi: false,
-    check: (t) => {
-      const top=t[0].filter(n=>n!==0), mid=t[1].filter(n=>n!==0), bot=t[2].filter(n=>n!==0)
-      const centre=mid[Math.floor(mid.length/2)]
-      return [top[0],top[top.length-1],centre,bot[0],bot[bot.length-1]].every(n=>markedNumbers.includes(n))
-    }
-  },
-  {
-    key: "bullseye",
-    label: "🎯 Bullseye",
-    desc: "Centre number of the ticket",
-    multi: false,
-    check: (t) => {
-      const mid=t[1].filter(n=>n!==0)
-      return markedNumbers.includes(mid[Math.floor(mid.length/2)])
-    }
-  },
-  {
-    key: "leftEdge",
-    label: "⬅️ Left Edge",
-    desc: "First number of each row",
-    multi: false,
-    check: (t) => [0,1,2].every(r=>{ const n=t[r].find(v=>v!==0); return n&&markedNumbers.includes(n) })
-  },
-  {
-    key: "rightEdge",
-    label: "➡️ Right Edge",
-    desc: "Last number of each row",
-    multi: false,
-    check: (t) => [0,1,2].every(r=>{ const n=[...t[r]].reverse().find(v=>v!==0); return n&&markedNumbers.includes(n) })
-  },
-  {
-    key: "firstAndLast",
-    label: "↔️ First & Last",
-    desc: "First & last number of all 3 rows",
-    multi: false,
-    check: (t) => [0,1,2].every(r=>{
-      const row=t[r].filter(n=>n!==0)
-      return markedNumbers.includes(row[0]) && markedNumbers.includes(row[row.length-1])
-    })
-  },
-  {
-    key: "anyTwoLines",
-    label: "✌️ Any Two Lines",
-    desc: "Any 2 complete rows",
-    multi: false,
-    check: (t) => { let c=0; t.forEach(r=>{ if(r.filter(n=>n!==0).every(n=>markedNumbers.includes(n)))c++ }); return c>=2 }
-  },
-  {
-    key: "fullHouse",
-    label: "🎉 Full House",
-    desc: "All 15 numbers on the ticket",
-    multi: false,
-    check: (t) => t.every(r=>r.filter(n=>n!==0).every(n=>markedNumbers.includes(n)))
-  },
-  {
-    key: "secondHouse",
-    label: "🥇 Second Full House",
-    desc: "Second player to get Full House",
-    multi: false,
-    requireAfter: "fullHouse",
-    check: (t) => t.every(r=>r.filter(n=>n!==0).every(n=>markedNumbers.includes(n)))
-  },
-  {
-    key: "thirdHouse",
-    label: "🏅 Third Full House",
-    desc: "Third player to get Full House",
-    multi: false,
-    requireAfter: "secondHouse",
-    check: (t) => t.every(r=>r.filter(n=>n!==0).every(n=>markedNumbers.includes(n)))
-  }
+  { key:"earlyFive",    label:"🚀 Early Five",       desc:"First 5 numbers marked on ticket" },
+  { key:"earlySeven",   label:"7️⃣ Early Seven",      desc:"First 7 numbers marked on ticket" },
+  { key:"topLine",      label:"🏆 Top Line",          desc:"All numbers in top row" },
+  { key:"middleLine",   label:"🥈 Middle Line",       desc:"All numbers in middle row" },
+  { key:"bottomLine",   label:"🥉 Bottom Line",       desc:"All numbers in bottom row" },
+  { key:"corners",      label:"🔲 Four Corners",      desc:"First & last of top and bottom rows" },
+  { key:"star",         label:"⭐ Star",               desc:"Four corners + centre number" },
+  { key:"bullseye",     label:"🎯 Bullseye",           desc:"Centre number of the ticket" },
+  { key:"leftEdge",     label:"⬅️ Left Edge",          desc:"First number of each row" },
+  { key:"rightEdge",    label:"➡️ Right Edge",         desc:"Last number of each row" },
+  { key:"firstAndLast", label:"↔️ First & Last",       desc:"First & last of all 3 rows" },
+  { key:"anyTwoLines",  label:"✌️ Any Two Lines",      desc:"Any 2 complete rows" },
+  { key:"fullHouse",    label:"🎉 Full House",          desc:"All 15 numbers on the ticket" },
+  { key:"secondHouse",  label:"🥇 Second Full House",  desc:"Second player to get Full House" },
+  { key:"thirdHouse",   label:"🏅 Third Full House",   desc:"Third player to get Full House" }
 ]
 
-// Track claimed prizes globally (from server) and locally
-let claimedPrizes   = {}  // { "ticketNum_prizeKey": true } — this player's claims
-let globalClaimed   = {}  // { "prizeKey": count } — how many times prize claimed globally
-let activePrizeKeys = null // null = all active, array = only these keys
+let claimedPrizes   = {}
+let globalClaimed   = {}
+let activePrizeKeys = null
 
-/* ════════════════════════════════
-   CHECK WINNERS — now handled server-side
-   kept as no-op for compatibility
-   ════════════════════════════════ */
 function checkWinners(){ /* handled by server */ }
 
 /* ════════════════════════════════
@@ -1064,7 +881,6 @@ function showWinBanner(prizeLabel, prizeDesc, ticketNum, playerName){
 
   document.body.appendChild(banner)
 
-  // Auto close after 2.5 seconds
   if(!document.getElementById("winBannerStyle")){
     const s = document.createElement("style"); s.id="winBannerStyle"
     s.innerText = "@keyframes popIn{from{transform:translate(-50%,-50%) scale(0.4);opacity:0}to{transform:translate(-50%,-50%) scale(1);opacity:1}}"
@@ -1077,29 +893,22 @@ function showWinBanner(prizeLabel, prizeDesc, ticketNum, playerName){
   }, 2500)
 }
 
-// Admin updated active prizes mid-game
 socket.on("activePrizesUpdated", (prizes) => {
   activePrizeKeys = prizes && prizes.length > 0 ? prizes : null
 })
 
-// Server says prize was already taken by someone else
 socket.on("prizeTaken", ({ prize, winner }) => {
   showToast("❌ " + prize + " already won by " + winner.playerName + " (Ticket #" + winner.ticketNum + ")")
-  // Remove from claimedPrizes so it doesn't try again
-  const prizeObj = PRIZES.find(p => p.label === prize)
-  if(prizeObj) delete claimedPrizes[Object.keys(claimedPrizes).find(k => k.endsWith("_"+prizeObj.key))]
 })
 
-// Restore existing claims for late joiners
 socket.on("existingClaims", (claims) => {
   Object.entries(claims).forEach(([key, data]) => {
-    if(!key.includes("_")) return // skip per-ticket keys, only process prize keys
+    if(!key.includes("_")) return
     const prize = PRIZES.find(p => p.key === key)
     if(prize && data.playerName) addToWinnersList(prize.label, data.playerName, data.ticketNum)
   })
 })
 
-// Game Over — all prizes claimed
 socket.on("gameOver", () => {
   showGameOverBanner()
 })
@@ -1133,17 +942,11 @@ function showGameOverBanner(){
   banner.style.animation = "popIn 0.4s ease"
 }
 
-// Listen for prize claimed by ANY player — show to everyone
 socket.on("prizeClaimed", ({ ticketNum, playerName, prize, prizeKey }) => {
   ticketNum = parseInt(ticketNum)
-
-  // Update global claimed state
   if(prizeKey) globalClaimed[prizeKey] = { playerName, ticketNum }
-
-  // Always add to winners list
   addToWinnersList(prize, playerName, ticketNum)
 
-  // Show win banner for MY ticket, toast for others
   if(myBookedTickets.includes(ticketNum)){
     const prizeObj = PRIZES.find(p => p.label === prize)
     showWinBanner(prize, prizeObj ? prizeObj.desc : "", ticketNum, playerName)
