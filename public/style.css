@@ -503,3 +503,78 @@ hr{
   color: rgba(255,255,255,0.8);
   margin: 0 0 4px;
 }
+
+/* ── MOBILE RESPONSIVE ── */
+@media (max-width: 600px) {
+
+  h1 { font-size: 24px; }
+  h2 { font-size: 16px; }
+
+  body { padding: 12px 8px; }
+
+  /* Ticket grid — bigger cells on mobile */
+  .ticket {
+    grid-template-columns: repeat(9, 1fr);
+    gap: 3px;
+  }
+
+  .cell {
+    width: auto;
+    height: 40px;
+    font-size: 13px;
+    border-radius: 6px;
+  }
+
+  /* Ticket card */
+  .ticketCard {
+    padding: 10px 8px;
+  }
+
+  .ticket-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 4px;
+    padding: 8px 10px;
+  }
+
+  .ticket-label { font-size: 13px; }
+  .ticket-name  { font-size: 13px; }
+
+  /* Called numbers board */
+  .board {
+    grid-template-columns: repeat(9, 1fr);
+    gap: 4px;
+  }
+
+  .number {
+    width: auto;
+    height: 38px;
+    font-size: 13px;
+    border-radius: 6px;
+  }
+
+  /* Current number box */
+  .current-number-box { padding: 8px 24px; }
+  #currentNumber { font-size: 42px; }
+
+  /* Ticket buttons on booking screen */
+  .ticketButton {
+    width: 44px;
+    height: 44px;
+    font-size: 14px;
+    border-radius: 10px;
+  }
+
+  .sheetRow { gap: 6px; justify-content: center; }
+
+  /* Search input */
+  .searchRow input { width: 220px; font-size: 14px; }
+
+  /* Selection row */
+  .selectionRow { gap: 8px; }
+  .selectionRow input { width: 160px; }
+
+  /* Countdown */
+  .countdown-number { font-size: 56px; }
+  .countdown-box { padding: 16px 32px; }
+}
