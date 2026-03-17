@@ -49,15 +49,15 @@ function createBoard(){
 
 /* ════════════════════════════════
    TICKET LIST
-   — booking/countdown screens: all tickets as clickable buttons (original behaviour)
-   — game screen: only booked tickets as real ticket cards
+   — booking/countdown: all ticket buttons
+   — game screen: only booked tickets as real cards
    ════════════════════════════════ */
 function buildTicketList(listId, infoId){
   const list = document.getElementById(listId)
   if(!list || !totalTickets) return
   list.innerHTML = ""
 
-  // ── GAME SCREEN: show only booked tickets as real cards ──
+  // ── GAME SCREEN: real ticket cards for booked tickets only ──
   if(listId === "ticketList"){
     const bookedEntries = Object.entries(bookedTickets)
       .sort((a,b) => parseInt(a[0]) - parseInt(b[0]))
@@ -111,7 +111,7 @@ function buildTicketList(listId, infoId){
     return
   }
 
-  // ── BOOKING / COUNTDOWN SCREENS: all tickets as clickable buttons ──
+  // ── BOOKING / COUNTDOWN SCREENS: sheet blocks with ticket buttons ──
   const totalSheets = Math.ceil(totalTickets / 6)
   for(let s = 0; s < totalSheets; s++){
     const block = document.createElement("div")
@@ -461,14 +461,14 @@ function printMyTickets(){
 }
 
 /* ════════════════════════════════
-   SEARCH — scrolls directly to real ticket card
+   SEARCH — filter: only matching tickets visible
    ════════════════════════════════ */
 function searchAndScroll(){
   const query = document.getElementById("searchInput").value.trim().toLowerCase()
   const resultsEl = document.getElementById("searchResults")
   if(resultsEl) resultsEl.innerHTML = ""
 
-  // Show all cards if query empty
+  // Empty query — show all cards
   if(!query){
     document.querySelectorAll('[id^="allcard"]').forEach(card => {
       card.style.display = ""
@@ -477,13 +477,13 @@ function searchAndScroll(){
     return
   }
 
-  const matches = Object.entries(bookedTickets)
+  const matchIds = Object.entries(bookedTickets)
     .filter(([,name]) => name.toLowerCase().includes(query))
     .map(([tNum]) => "allcard"+tNum)
 
-  // Hide non-matching, show matching
+  // Hide non-matching, show & highlight matching
   document.querySelectorAll('[id^="allcard"]').forEach(card => {
-    if(matches.includes(card.id)){
+    if(matchIds.includes(card.id)){
       card.style.display = ""
       card.style.boxShadow = "0 0 0 3px #ffcc80, 0 8px 32px rgba(0,0,0,0.4)"
     } else {
@@ -492,8 +492,8 @@ function searchAndScroll(){
   })
 
   // Scroll to first match
-  if(matches.length > 0){
-    const firstCard = document.getElementById(matches[0])
+  if(matchIds.length > 0){
+    const firstCard = document.getElementById(matchIds[0])
     if(firstCard) firstCard.scrollIntoView({ behavior:"smooth", block:"center" })
   } else {
     if(resultsEl) resultsEl.innerHTML =
@@ -501,11 +501,15 @@ function searchAndScroll(){
   }
 }
 
+function searchTickets(){
+  searchAndScroll()
+}
+
 function clearSearch(){
   document.getElementById("searchInput").value = ""
   const resultsEl = document.getElementById("searchResults")
   if(resultsEl) resultsEl.innerHTML = ""
-  // Show all cards again
+  // Restore all cards
   document.querySelectorAll('[id^="allcard"]').forEach(card => {
     card.style.display = ""
     card.style.boxShadow = ""
@@ -830,18 +834,13 @@ socket.on("numberCalled", (number) => {
 
   announceNumber(number)
 
-  // Mark on called numbers board
   const b = document.getElementById("b"+number); if(b) b.classList.add("called")
-
-  // Mark on ticket preview
   const t = document.getElementById("t"+number); if(t) t.classList.add("marked")
 
-  // Mark on my tickets mini cells
   document.querySelectorAll('[id$="c'+number+'"]').forEach(cell => {
     if(cell.id.startsWith("mt")) cell.classList.add("marked")
   })
 
-  // Mark on all booked ticket cards
   document.querySelectorAll('[id^="allcell_"]').forEach(cell => {
     const parts = cell.id.split("_")
     const cellVal = parseInt(parts[parts.length - 1])
@@ -937,11 +936,23 @@ socket.on("prizeTaken", ({ prize, winner }) => {
   showToast("❌ " + prize + " already won by " + winner.playerName + " (Ticket #" + winner.ticketNum + ")")
 })
 
+/* ════════════════════════════════
+   EXISTING CLAIMS — late joiners see ALL prizes
+   claimed before they joined ✅
+   ════════════════════════════════ */
 socket.on("existingClaims", (claims) => {
-  Object.entries(claims).forEach(([key, data]) => {
-    if(!key.includes("_")) return
+  const prizeKeys = [
+    "earlyFive","earlySeven","topLine","middleLine","bottomLine",
+    "corners","star","bullseye","leftEdge","rightEdge","firstAndLast",
+    "anyTwoLines","fullHouse","secondHouse","thirdHouse"
+  ]
+
+  prizeKeys.forEach(key => {
+    const data = claims[key]
+    if(!data || !data.playerName) return
     const prize = PRIZES.find(p => p.key === key)
-    if(prize && data.playerName) addToWinnersList(prize.label, data.playerName, data.ticketNum)
+    if(!prize) return
+    addToWinnersList(prize.label, data.playerName, data.ticketNum)
   })
 })
 
