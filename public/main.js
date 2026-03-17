@@ -201,15 +201,13 @@ function updateSelectionPanel(){
 function ticketClicked(num){
   unlockAudio()
   if(bookedTickets[num] && !myBookedTickets.includes(num)){
-    previewTicket(num)
-    return
+    previewTicket(num); return
   }
   if(onHoldTickets[num] && !myHeldTickets.includes(num)){
     alert("Ticket #"+num+" is on hold by "+onHoldTickets[num]); return
   }
   if(myBookedTickets.includes(num) || myHeldTickets.includes(num)){
-    previewTicket(num)
-    return
+    previewTicket(num); return
   }
   if(selectedTickets.includes(num)){
     selectedTickets = selectedTickets.filter(t => t !== num)
@@ -330,13 +328,11 @@ function clearSelection(){
    ════════════════════════════════ */
 function showMyTickets(){
   const hasAny = myBookedTickets.length > 0 || myHeldTickets.length > 0
-
   const sections = [
     { sec:"myTicketsSectionPre", list:"myTicketsListPre" },
     { sec:"myTicketsSectionCd",  list:"myTicketsListCd"  },
     { sec:"myTicketsSection",    list:"myTicketsList"    }
   ]
-
   sections.forEach(({ sec, list }) => {
     const sEl = document.getElementById(sec)
     const lEl = document.getElementById(list)
@@ -344,15 +340,8 @@ function showMyTickets(){
     sEl.style.display = hasAny ? "block" : "none"
     if(!lEl) return
     lEl.innerHTML = ""
-
-    myHeldTickets.forEach(num => {
-      const card = buildTicketCard(num, "hold")
-      lEl.appendChild(card)
-    })
-    myBookedTickets.forEach(num => {
-      const card = buildTicketCard(num, "booked")
-      lEl.appendChild(card)
-    })
+    myHeldTickets.forEach(num => { const card = buildTicketCard(num, "hold"); lEl.appendChild(card) })
+    myBookedTickets.forEach(num => { const card = buildTicketCard(num, "booked"); lEl.appendChild(card) })
   })
 }
 
@@ -468,7 +457,6 @@ function searchAndScroll(){
   const resultsEl = document.getElementById("searchResults")
   if(resultsEl) resultsEl.innerHTML = ""
 
-  // Empty query — show all cards
   if(!query){
     document.querySelectorAll('[id^="allcard"]').forEach(card => {
       card.style.display = ""
@@ -481,7 +469,6 @@ function searchAndScroll(){
     .filter(([,name]) => name.toLowerCase().includes(query))
     .map(([tNum]) => "allcard"+tNum)
 
-  // Hide non-matching, show & highlight matching
   document.querySelectorAll('[id^="allcard"]').forEach(card => {
     if(matchIds.includes(card.id)){
       card.style.display = ""
@@ -491,7 +478,6 @@ function searchAndScroll(){
     }
   })
 
-  // Scroll to first match
   if(matchIds.length > 0){
     const firstCard = document.getElementById(matchIds[0])
     if(firstCard) firstCard.scrollIntoView({ behavior:"smooth", block:"center" })
@@ -501,15 +487,12 @@ function searchAndScroll(){
   }
 }
 
-function searchTickets(){
-  searchAndScroll()
-}
+function searchTickets(){ searchAndScroll() }
 
 function clearSearch(){
   document.getElementById("searchInput").value = ""
   const resultsEl = document.getElementById("searchResults")
   if(resultsEl) resultsEl.innerHTML = ""
-  // Restore all cards
   document.querySelectorAll('[id^="allcard"]').forEach(card => {
     card.style.display = ""
     card.style.boxShadow = ""
@@ -528,12 +511,10 @@ function addToWinnersList(prize, playerName, ticketNum){
   playerWinnersStore.push({ prize, playerName, ticketNum })
 
   const sheet = Math.floor((ticketNum-1)/6)+1
-
   ;["winnersSection","winnersSectionCd"].forEach(secId => {
     const section = document.getElementById(secId)
     if(section) section.style.display = "block"
   })
-
   ;["playerWinnersList","playerWinnersListCd"].forEach(listId => {
     const list = document.getElementById(listId)
     if(!list) return
@@ -559,30 +540,24 @@ function viewWinnerTicket(ticketNum){
   const ticketIdx = (ticketNum-1)%6
   const ticket    = ticketSheets[sheetIdx] && ticketSheets[sheetIdx][ticketIdx]
   if(!ticket) return
-
   const playerName = bookedTickets[ticketNum] || ""
   const sheet      = sheetIdx+1
-
   const old = document.getElementById("winnerTicketPopup")
   if(old) old.remove()
-
   const overlay = document.createElement("div")
   overlay.id = "winnerTicketPopup"
   overlay.style.cssText = "position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.75);"
     + "z-index:99999;display:flex;align-items:center;justify-content:center;padding:16px;box-sizing:border-box;"
   overlay.onclick = (e) => { if(e.target === overlay) overlay.remove() }
-
   const card = document.createElement("div")
   card.style.cssText = "background:white;border-radius:16px;padding:20px;max-width:520px;width:100%;"
     + "box-shadow:0 8px 40px rgba(0,0,0,0.5);"
-
   const hdr = document.createElement("div")
   hdr.style.cssText = "display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;"
     + "padding:10px 14px;background:linear-gradient(135deg,#1976d2,#0d47a1);border-radius:10px;color:white;"
   hdr.innerHTML = '<span style="font-size:15px;font-weight:700;">🎟 Ticket #'+ticketNum+' · Sheet '+sheet+'</span>'
     + '<span style="font-size:14px;color:#ffeb3b;font-weight:600;">'+playerName+'</span>'
   card.appendChild(hdr)
-
   const grid = document.createElement("div")
   grid.style.cssText = "display:grid;grid-template-columns:repeat(9,1fr);gap:4px;"
   for(let r=0;r<3;r++){
@@ -602,25 +577,14 @@ function viewWinnerTicket(ticketNum){
     }
   }
   card.appendChild(grid)
-
   const closeBtn = document.createElement("button")
   closeBtn.innerText = "✖ Close"
   closeBtn.style.cssText = "margin-top:14px;width:100%;padding:10px;font-size:14px;background:#1976d2;"
     + "color:white;border:none;border-radius:8px;cursor:pointer;font-weight:600;"
   closeBtn.onclick = () => overlay.remove()
   card.appendChild(closeBtn)
-
   overlay.appendChild(card)
   document.body.appendChild(overlay)
-}
-
-function shareWinnersPlayer(){
-  if(playerWinnersStore.length === 0){ alert("No winners yet"); return }
-  let msg = "🎱 *Tambola Winners* 🎉\n\n"
-  playerWinnersStore.forEach((w,i) => {
-    msg += (i+1)+". "+w.prize+" — *"+w.playerName+"* (Ticket #"+w.ticketNum+")\n"
-  })
-  window.open("https://wa.me/?text="+encodeURIComponent(msg),"_blank")
 }
 
 /* ════════════════════════════════
@@ -644,6 +608,7 @@ function showToast(msg){
 
 /* ════════════════════════════════
    SOCKET — GAME STARTED
+   ── Fixed: late joiners always get correct screen ──
    ════════════════════════════════ */
 socket.on("gameStarted", (data) => {
   totalTickets     = parseInt(data.totalTickets) || 0
@@ -656,8 +621,12 @@ socket.on("gameStarted", (data) => {
 
   const now = Date.now()
 
+  // ── Check in correct priority order ──
   if(data.calledNumbers && data.calledNumbers.length > 0){
-    // Numbers already called — game is live
+    // Numbers already called = game is definitely live
+    goLive()
+  } else if(data.gameLive){
+    // Server says game is live (startTime passed)
     goLive()
   } else if(startTime && now < startTime){
     // Countdown still running
@@ -665,10 +634,10 @@ socket.on("gameStarted", (data) => {
     buildTicketList("ticketListCd","ticketInfoCd")
     startCountdown(startTime)
   } else if(startTime && now >= startTime){
-    // Countdown finished but no numbers yet — go live
+    // Countdown just finished, no numbers yet
     goLive()
   } else {
-    // Game ready but not started yet — booking screen
+    // Game ready but not started — booking screen
     showScreen("bookingScreen")
     buildTicketList("ticketListPre","ticketInfoPre")
   }
@@ -680,6 +649,8 @@ socket.on("gameStarted", (data) => {
 socket.on("gameCountdown", ({ startTime: st, activePrizes }) => {
   startTime = st
   activePrizeKeys = activePrizes && activePrizes.length > 0 ? activePrizes : null
+  // Only switch to countdown if not already live
+  if(currentScreen === "gameScreen") return
   showScreen("countdownScreen")
   buildTicketList("ticketListCd","ticketInfoCd")
   refreshTicketButtons()
@@ -711,23 +682,17 @@ socket.on("holdFailed", (failedList) => {
 socket.on("ticketBooked", ({ ticketNum, playerName }) => {
   bookedTickets[ticketNum] = playerName
   delete onHoldTickets[ticketNum]
-
   const isMyTicket = myHeldTickets.includes(ticketNum)
-  if(isMyTicket){
-    myHeldTickets = myHeldTickets.filter(t=>t!==ticketNum)
-  }
+  if(isMyTicket) myHeldTickets = myHeldTickets.filter(t=>t!==ticketNum)
   const myName = getMyName()
   if((isMyTicket || (myName && myName.toLowerCase()===playerName.toLowerCase()))
      && !myBookedTickets.includes(ticketNum)){
     myBookedTickets.push(ticketNum)
     showToast("✅ Ticket #"+ticketNum+" confirmed for "+playerName+"!")
   }
-
   refreshTicketButtons(); updateAllInfo()
   if(previewTicketNum===ticketNum) previewTicket(ticketNum)
   showMyTickets()
-
-  // Rebuild all booked tickets list live on game screen
   if(currentScreen === "gameScreen") buildTicketList("ticketList","ticketInfo")
 })
 
@@ -813,9 +778,7 @@ function announceNumber(num){
   window.speechSynthesis.cancel()
   const text = NUMBER_CALLS[num] || "Number " + num
   const utter = new SpeechSynthesisUtterance(text)
-  utter.rate   = 0.85
-  utter.pitch  = 1.0
-  utter.volume = 1.0
+  utter.rate = 0.85; utter.pitch = 1.0; utter.volume = 1.0
   const trySpeak = () => {
     const voices = window.speechSynthesis.getVoices()
     const preferred = voices.find(v =>
@@ -835,16 +798,12 @@ socket.on("numberCalled", (number) => {
   const el = document.getElementById("currentNumber")
   if(el) el.innerText = number
   markedNumbers.push(number)
-
   announceNumber(number)
-
   const b = document.getElementById("b"+number); if(b) b.classList.add("called")
   const t = document.getElementById("t"+number); if(t) t.classList.add("marked")
-
   document.querySelectorAll('[id$="c'+number+'"]').forEach(cell => {
     if(cell.id.startsWith("mt")) cell.classList.add("marked")
   })
-
   document.querySelectorAll('[id^="allcell_"]').forEach(cell => {
     const parts = cell.id.split("_")
     const cellVal = parseInt(parts[parts.length - 1])
@@ -901,7 +860,6 @@ function checkWinners(){ /* handled by server */ }
 function showWinBanner(prizeLabel, prizeDesc, ticketNum, playerName){
   const old = document.getElementById("winBanner")
   if(old) old.remove()
-
   const banner = document.createElement("div")
   banner.id = "winBanner"
   banner.style.cssText =
@@ -910,26 +868,20 @@ function showWinBanner(prizeLabel, prizeDesc, ticketNum, playerName){
     "border:2px solid #ffcc80;border-radius:20px;padding:32px 48px;" +
     "text-align:center;z-index:99999;" +
     "box-shadow:0 8px 40px rgba(0,0,0,0.7);max-width:90vw;transition:opacity 0.4s;"
-
   banner.innerHTML =
     '<div style="font-size:52px;margin-bottom:8px;">🎊</div>' +
     '<div style="font-size:24px;font-weight:700;color:#ffcc80;margin-bottom:4px;">'+prizeLabel+'</div>' +
     '<div style="font-size:13px;color:rgba(255,255,255,0.6);margin-bottom:12px;">'+prizeDesc+'</div>' +
     '<div style="font-size:15px;color:#fff;margin-bottom:2px;">Ticket #'+ticketNum+'</div>' +
     '<div style="font-size:20px;font-weight:700;color:#a5d6a7;">'+playerName+'</div>'
-
   document.body.appendChild(banner)
-
   if(!document.getElementById("winBannerStyle")){
     const s = document.createElement("style"); s.id="winBannerStyle"
     s.innerText = "@keyframes popIn{from{transform:translate(-50%,-50%) scale(0.4);opacity:0}to{transform:translate(-50%,-50%) scale(1);opacity:1}}"
     document.head.appendChild(s)
   }
   banner.style.animation = "popIn 0.4s ease"
-  setTimeout(() => {
-    banner.style.opacity = "0"
-    setTimeout(() => banner.remove(), 400)
-  }, 2500)
+  setTimeout(() => { banner.style.opacity="0"; setTimeout(()=>banner.remove(),400) }, 2500)
 }
 
 socket.on("activePrizesUpdated", (prizes) => {
@@ -941,8 +893,7 @@ socket.on("prizeTaken", ({ prize, winner }) => {
 })
 
 /* ════════════════════════════════
-   EXISTING CLAIMS — late joiners see ALL prizes
-   claimed before they joined ✅
+   EXISTING CLAIMS — late joiners see all prizes ✅
    ════════════════════════════════ */
 socket.on("existingClaims", (claims) => {
   const prizeKeys = [
@@ -950,7 +901,6 @@ socket.on("existingClaims", (claims) => {
     "corners","star","bullseye","leftEdge","rightEdge","firstAndLast",
     "anyTwoLines","fullHouse","secondHouse","thirdHouse"
   ]
-
   prizeKeys.forEach(key => {
     const data = claims[key]
     if(!data || !data.playerName) return
@@ -960,9 +910,7 @@ socket.on("existingClaims", (claims) => {
   })
 })
 
-socket.on("gameOver", () => {
-  showGameOverBanner()
-})
+socket.on("gameOver", () => { showGameOverBanner() })
 
 function showGameOverBanner(){
   const old = document.getElementById("gameOverBanner")
@@ -997,7 +945,6 @@ socket.on("prizeClaimed", ({ ticketNum, playerName, prize, prizeKey }) => {
   ticketNum = parseInt(ticketNum)
   if(prizeKey) globalClaimed[prizeKey] = { playerName, ticketNum }
   addToWinnersList(prize, playerName, ticketNum)
-
   if(myBookedTickets.includes(ticketNum)){
     const prizeObj = PRIZES.find(p => p.label === prize)
     showWinBanner(prize, prizeObj ? prizeObj.desc : "", ticketNum, playerName)
