@@ -129,7 +129,6 @@ function checkPrizes(){
   if(!marked.length || !Object.keys(booked).length) return
 
   const prizes = (active && active.length > 0) ? PRIZE_DEFS.filter(p => active.includes(p.key)) : PRIZE_DEFS
-
   const normalPrizes = prizes.filter(p => !["fullHouse","secondHouse","thirdHouse"].includes(p.key))
   const doFullHouse  = prizes.some(p => p.key === "fullHouse")
   const doSecond     = prizes.some(p => p.key === "secondHouse")
@@ -141,7 +140,6 @@ function checkPrizes(){
     const ticketIdx = (ticketNum-1)%6
     const ticket    = sheets[sheetIdx] && sheets[sheetIdx][ticketIdx]
     if(!ticket) return
-
     normalPrizes.forEach(prize => {
       if(gameState.globalClaimed[prize.key]) return
       const claimKey = ticketNum+"_"+prize.key
@@ -149,51 +147,41 @@ function checkPrizes(){
       if(prize.check(ticket, marked)){
         gameState.globalClaimed[prize.key]  = { playerName, ticketNum }
         gameState.globalClaimed[claimKey]   = { playerName, ticketNum }
-        console.log("✅", prize.label, "→", playerName, "Ticket #"+ticketNum)
         saveState()
         io.emit("prizeClaimed", { ticketNum, playerName, prize: prize.label, prizeKey: prize.key })
       }
     })
   })
 
-  // ── Full House 1st / 2nd / 3rd — single pass ──
   if(doFullHouse || doSecond || doThird){
     const fullHouseCheck = PRIZE_DEFS.find(p => p.key === "fullHouse").check
     const newWinners = []
-
     Object.entries(booked).forEach(([tNum, playerName]) => {
       if(gameState.globalClaimed[tNum+"_fullHouse"])   return
       if(gameState.globalClaimed[tNum+"_secondHouse"]) return
       if(gameState.globalClaimed[tNum+"_thirdHouse"])  return
       const ticketNum = parseInt(tNum)
-      const sheetIdx  = Math.floor((ticketNum-1)/6)
-      const ticketIdx = (ticketNum-1)%6
-      const ticket    = sheets[sheetIdx] && sheets[sheetIdx][ticketIdx]
+      const ticket    = sheets[Math.floor((ticketNum-1)/6)] && sheets[Math.floor((ticketNum-1)/6)][(ticketNum-1)%6]
       if(!ticket) return
       if(fullHouseCheck(ticket, marked)) newWinners.push({ ticketNum, playerName, tNum })
     })
-
     newWinners.forEach(({ ticketNum, playerName, tNum }) => {
       const has1st = !!gameState.globalClaimed["fullHouse"]
       const has2nd = !!gameState.globalClaimed["secondHouse"]
       const has3rd = !!gameState.globalClaimed["thirdHouse"]
-
       if(doFullHouse && !has1st){
         gameState.globalClaimed["fullHouse"]       = { playerName, ticketNum }
         gameState.globalClaimed[tNum+"_fullHouse"] = { playerName, ticketNum }
-        console.log("✅ Full House →", playerName, "Ticket #"+ticketNum)
         saveState()
         io.emit("prizeClaimed", { ticketNum, playerName, prize: "🎉 Full House", prizeKey: "fullHouse" })
       } else if(doSecond && has1st && !has2nd){
-        gameState.globalClaimed["secondHouse"]          = { playerName, ticketNum }
-        gameState.globalClaimed[tNum+"_secondHouse"]    = { playerName, ticketNum }
-        console.log("✅ Second Full House →", playerName, "Ticket #"+ticketNum)
+        gameState.globalClaimed["secondHouse"]       = { playerName, ticketNum }
+        gameState.globalClaimed[tNum+"_secondHouse"] = { playerName, ticketNum }
         saveState()
         io.emit("prizeClaimed", { ticketNum, playerName, prize: "🥇 Second Full House", prizeKey: "secondHouse" })
       } else if(doThird && has1st && has2nd && !has3rd){
-        gameState.globalClaimed["thirdHouse"]           = { playerName, ticketNum }
-        gameState.globalClaimed[tNum+"_thirdHouse"]     = { playerName, ticketNum }
-        console.log("✅ Third Full House →", playerName, "Ticket #"+ticketNum)
+        gameState.globalClaimed["thirdHouse"]       = { playerName, ticketNum }
+        gameState.globalClaimed[tNum+"_thirdHouse"] = { playerName, ticketNum }
         saveState()
         io.emit("prizeClaimed", { ticketNum, playerName, prize: "🏅 Third Full House", prizeKey: "thirdHouse" })
       }
@@ -209,42 +197,64 @@ function checkPrizes(){
   if(allDone){ console.log("🎉 GAME OVER"); io.emit("gameOver") }
 }
 
-/* ── STATE PERSISTENCE ── */
+/* ══════════════════════════════════════════════
+   STATE PERSISTENCE
+   Uses both file (local) AND in-memory backup.
+   On Render, files are wiped on restart — so we
+   also keep a module-level backup object that
+   survives within the same process lifetime.
+   ══════════════════════════════════════════════ */
 const STATE_FILE = path.join(__dirname, "gamestate.json")
 
+// In-memory backup — survives within same Node process
+let memoryBackup = null
+
 function saveState(){
-  try {
-    const toSave = {
-      started:       gameState.started,
-      totalTickets:  gameState.totalTickets,
-      bookedTickets: gameState.bookedTickets,
-      onHoldTickets: gameState.onHoldTickets,
-      calledNumbers: gameState.calledNumbers,
-      startTime:     gameState.startTime,
-      activePrizes:  gameState.activePrizes,
-      globalClaimed: gameState.globalClaimed
-    }
-    fs.writeFileSync(STATE_FILE, JSON.stringify(toSave))
-  } catch(e){ console.log("Save error:", e.message) }
+  const toSave = {
+    started:       gameState.started,
+    totalTickets:  gameState.totalTickets,
+    bookedTickets: gameState.bookedTickets,
+    onHoldTickets: gameState.onHoldTickets,
+    calledNumbers: gameState.calledNumbers,
+    startTime:     gameState.startTime,
+    activePrizes:  gameState.activePrizes,
+    globalClaimed: gameState.globalClaimed
+  }
+  // Always save to memory
+  memoryBackup = JSON.parse(JSON.stringify(toSave))
+  // Try file save (works locally, may fail on Render)
+  try { fs.writeFileSync(STATE_FILE, JSON.stringify(toSave)) } catch(e){}
 }
 
 function loadState(){
+  let saved = null
+
+  // Try file first
   try {
-    if(!fs.existsSync(STATE_FILE)) return
-    const saved = JSON.parse(fs.readFileSync(STATE_FILE, "utf8"))
-    if(!saved.started) return
-    console.log("📂 Restoring game state...")
-    gameState.started       = saved.started
-    gameState.totalTickets  = saved.totalTickets
-    gameState.bookedTickets = saved.bookedTickets || {}
-    gameState.onHoldTickets = saved.onHoldTickets || {}
-    gameState.calledNumbers = saved.calledNumbers || []
-    gameState.startTime     = saved.startTime
-    gameState.activePrizes  = saved.activePrizes  || []
-    gameState.globalClaimed = saved.globalClaimed || {}
-    gameState.sheets        = generateAllSheets(saved.totalTickets)
-    console.log("✅ Restored:", saved.totalTickets, "tickets,", saved.calledNumbers.length, "numbers called")
-  } catch(e){ console.log("Load error:", e.message) }
+    if(fs.existsSync(STATE_FILE)){
+      saved = JSON.parse(fs.readFileSync(STATE_FILE, "utf8"))
+      console.log("📂 Loaded state from file")
+    }
+  } catch(e){ console.log("File load error:", e.message) }
+
+  // Fall back to memory backup
+  if(!saved && memoryBackup){
+    saved = memoryBackup
+    console.log("📂 Loaded state from memory backup")
+  }
+
+  if(!saved || !saved.started) return
+
+  console.log("✅ Restoring:", saved.totalTickets, "tickets,", saved.calledNumbers.length, "numbers called")
+  gameState.started       = saved.started
+  gameState.totalTickets  = saved.totalTickets
+  gameState.bookedTickets = saved.bookedTickets || {}
+  gameState.onHoldTickets = saved.onHoldTickets || {}
+  gameState.calledNumbers = saved.calledNumbers || []
+  gameState.startTime     = saved.startTime
+  gameState.activePrizes  = saved.activePrizes  || []
+  gameState.globalClaimed = saved.globalClaimed || {}
+  gameState.sheets        = generateAllSheets(saved.totalTickets)
 }
 
 /* ── GAME STATE ── */
@@ -264,15 +274,15 @@ loadState()
 
 /* ── SOCKET ── */
 io.on("connection", (socket) => {
-  console.log("Connected:", socket.id)
+  console.log("Connected:", socket.id, "| Game started:", gameState.started, "| Numbers called:", gameState.calledNumbers.length)
 
-  // ── Always send full state to every joiner ──
   if(gameState.started){
     const now = Date.now()
     const gameLive = gameState.calledNumbers.length > 0 ||
                      (gameState.startTime && now >= gameState.startTime)
 
-    // Always send gameStarted so client has sheets + booked tickets
+    console.log("Sending gameStarted to late joiner | gameLive:", gameLive)
+
     socket.emit("gameStarted", {
       totalTickets:  gameState.totalTickets,
       sheets:        gameState.sheets,
@@ -280,7 +290,7 @@ io.on("connection", (socket) => {
       onHoldTickets: gameState.onHoldTickets,
       calledNumbers: gameState.calledNumbers,
       startTime:     gameState.startTime,
-      gameLive:      gameLive   // ← extra flag so client knows for sure
+      gameLive:      gameLive
     })
 
     // Send countdown if still running
@@ -325,7 +335,7 @@ io.on("connection", (socket) => {
   socket.on("startGame", ({ startDelay, callInterval, activePrizes }) => {
     gameState.startTime    = Date.now() + (startDelay * 1000)
     gameState.activePrizes = activePrizes && activePrizes.length > 0 ? activePrizes : []
-    console.log("🚀 Game starts in", startDelay, "s | Active prizes:", gameState.activePrizes)
+    console.log("🚀 Game starts in", startDelay, "s")
     saveState()
     io.emit("gameCountdown", { startTime: gameState.startTime, activePrizes: gameState.activePrizes })
     checkPrizes()
@@ -376,13 +386,12 @@ io.on("connection", (socket) => {
     if(activePrizes && activePrizes.length > 0) gameState.activePrizes = activePrizes
     io.emit("numberCalled", number)
     saveState()
-    console.log("📣 Number:", number, "| Booked:", Object.keys(gameState.bookedTickets).length, "| Active:", gameState.activePrizes)
+    console.log("📣 Number:", number, "| Total called:", gameState.calledNumbers.length)
     checkPrizes()
   })
 
   socket.on("updateActivePrizes", (activePrizes) => {
     gameState.activePrizes = activePrizes || []
-    console.log("🏆 Active prizes updated:", gameState.activePrizes)
     io.emit("activePrizesUpdated", gameState.activePrizes)
     checkPrizes()
   })
@@ -395,6 +404,7 @@ io.on("connection", (socket) => {
       bookedTickets: {}, onHoldTickets: {}, calledNumbers: [],
       startTime: null, activePrizes: [], globalClaimed: {}
     }
+    memoryBackup = null
     try { fs.unlinkSync(STATE_FILE) } catch(e){}
     io.emit("resetGame")
   })
