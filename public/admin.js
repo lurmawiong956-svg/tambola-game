@@ -19,7 +19,6 @@ function doLogin(){
   }
 }
 
-// Allow Enter key to submit login
 document.addEventListener("DOMContentLoaded", () => {
   ["loginUser","loginPass"].forEach(id => {
     const el = document.getElementById(id)
@@ -33,7 +32,7 @@ let numbers           = []
 let calledNumbers     = []
 let pendingHolds      = {}
 let confirmedBookings = {}
-let winnersList = []  // { prize, playerName, ticketNum }
+let winnersList = []
 let autoTimer         = null
 let autoPaused        = false
 let callIntervalSec   = 10
@@ -130,7 +129,6 @@ function sendActivePrizesUpdate(){
     const btn = document.getElementById("gtbtn_"+p.key)
     return btn && btn.getAttribute("data-on") === "true"
   }).map(p => p.key)
-  console.log("Sending active prizes:", active)
   socket.emit("updateActivePrizes", active)
 }
 
@@ -143,7 +141,6 @@ function setReady(){
   else { errorEl.innerText = "" }
 
   socket.emit("setTicketCount", { count })
-  // Unlock speech synthesis on user interaction
   if(window.speechSynthesis){ const u=new SpeechSynthesisUtterance(""); u.volume=0; window.speechSynthesis.speak(u) }
 
   document.getElementById("setupSection").style.display = "none"
@@ -174,12 +171,10 @@ function startGame(){
   document.getElementById("autoStatus").innerText = "⏳ Auto-call starts after countdown ("+delay+"s)..."
 
   renderGamePrizeToggles(activePrizes)
-  // Sync active prizes to server immediately (no delay needed since activePrizes already set in startGame)
   socket.emit("updateActivePrizes", activePrizes)
 
   setTimeout(() => {
     document.getElementById("gameControls").style.display = "block"
-    // Re-send active prizes when game actually goes live (after countdown)
     sendActivePrizesUpdate()
     startAutoCall()
   }, delay * 1000)
@@ -264,15 +259,11 @@ function callNumber(){
 }
 
 function getActivePrizesFromToggles(){
-  // Read from live toggle buttons (data-on must be explicitly "true")
   const toggleBtns = ALL_PRIZES.filter(p => {
     const btn = document.getElementById("gtbtn_"+p.key)
     return btn && btn.getAttribute("data-on") === "true"
   }).map(p => p.key)
-
   if(toggleBtns.length > 0) return toggleBtns
-
-  // Fall back to setup checkboxes
   return ALL_PRIZES.filter(p => {
     const cb = document.getElementById("prize_"+p.key)
     return cb && cb.checked
@@ -382,10 +373,7 @@ socket.on("numberCalled", (number) => {
   const box = document.getElementById("b"+num); if(box) box.classList.add("called")
 })
 socket.on("gameStarted", (data) => {
-  if(!isLoggedIn){
-    pendingRestore = data  // save for after login
-    return
-  }
+  if(!isLoggedIn){ pendingRestore = data; return }
   restoreAdminState(data)
 })
 
@@ -403,7 +391,6 @@ function restoreAdminState(data){
     const gameIsLive = calledNumbers && calledNumbers.length > 0
 
     if(gameIsLive){
-      // Game is running — show controls, hide setup
       document.getElementById("timingSetup").style.display    = "none"
       document.getElementById("resetBtnPre").style.display    = "none"
       document.getElementById("gameControls").style.display   = "block"
@@ -418,7 +405,6 @@ function restoreAdminState(data){
       if(ap && ap.length) renderGamePrizeToggles(ap)
       updateAutoStatus()
     } else {
-      // Tickets ready but game not started yet — show timing setup
       document.getElementById("timingSetup").style.display  = "block"
       document.getElementById("resetBtnPre").style.display  = "block"
       document.getElementById("gameControls").style.display = "none"
@@ -430,14 +416,12 @@ function restoreAdminState(data){
   }
   renderHoldTable(); renderBookedTable()
 }
-socket.on("prizeClaimed", ({ticketNum,playerName,prize}) => {
-  // Store in winners list
-  winnersList.push({ prize, playerName, ticketNum })
 
+socket.on("prizeClaimed", ({ticketNum,playerName,prize}) => {
+  winnersList.push({ prize, playerName, ticketNum })
   const noEl=document.getElementById("noPrizes"), log=document.getElementById("prizeLog")
   if(!log) return
   if(noEl) noEl.style.display="none"
-
   const sheet = Math.floor((ticketNum-1)/6)+1
   const row=document.createElement("div")
   row.style.cssText="display:flex;justify-content:space-between;align-items:center;padding:10px 14px;margin-bottom:8px;background:rgba(255,255,255,0.06);border-radius:10px;border:1px solid rgba(255,215,0,0.15);flex-wrap:wrap;gap:6px;"
@@ -446,8 +430,6 @@ socket.on("prizeClaimed", ({ticketNum,playerName,prize}) => {
     '<span style="font-size:14px;color:#a5d6a7;font-weight:600;">'+playerName+'</span>'+
     '<span style="font-size:13px;color:rgba(255,255,255,0.5);">Ticket #'+ticketNum+' · Sheet '+sheet+'</span>'
   log.insertBefore(row,log.firstChild)
-
-  // Flash and sound
   const sec=document.getElementById("prizeSection")
   if(sec){ sec.style.transition="background 0.2s"; sec.style.background="rgba(255,215,0,0.25)"; setTimeout(()=>{sec.style.background="rgba(67,160,71,0.07)"},700) }
   try {
@@ -457,6 +439,27 @@ socket.on("prizeClaimed", ({ticketNum,playerName,prize}) => {
     osc.start(ctx.currentTime); osc.stop(ctx.currentTime+0.6)
   } catch(e){}
 })
+
+/* ── SHARE BOOKINGS WHATSAPP ── */
+function shareBookingsWhatsApp(){
+  if(Object.keys(confirmedBookings).length === 0){ alert("No confirmed bookings yet"); return }
+
+  const entries = Object.entries(confirmedBookings)
+    .sort((a,b) => parseInt(a[0]) - parseInt(b[0]))
+
+  let msg = "🎱 *Tambola — Confirmed Bookings*\n"
+  msg += "━━━━━━━━━━━━━━━━━━━━\n"
+  msg += "Total: *"+entries.length+" tickets*\n\n"
+
+  entries.forEach(([num, name], i) => {
+    const sheet = Math.floor((num-1)/6)+1
+    msg += (i+1)+". Ticket *#"+num+"* (Sheet "+sheet+") — "+name+"\n"
+  })
+
+  msg += "\n📅 "+new Date().toLocaleDateString()
+
+  window.open("https://wa.me/?text="+encodeURIComponent(msg),"_blank")
+}
 
 /* ── SHARE BOOKINGS AS PDF ── */
 function shareBookingsPDF(){
@@ -532,7 +535,6 @@ function shareWinners(){
 socket.on("existingClaims", (claims) => {
   Object.entries(claims).forEach(([key, data]) => {
     if(!data || !data.playerName) return
-    // Only process base prize keys (not per-ticket keys like "5_fullHouse")
     const prizeKeys = ["earlyFive","earlySeven","topLine","middleLine","bottomLine",
       "corners","star","bullseye","leftEdge","rightEdge","firstAndLast",
       "anyTwoLines","fullHouse","secondHouse","thirdHouse"]
@@ -575,7 +577,6 @@ socket.on("gameOver", () => {
     '<button onclick="this.parentElement.remove()" style="padding:10px 24px;font-size:14px;background:rgba(255,255,255,0.15);color:white;border:none;border-radius:10px;cursor:pointer;margin:4px;">✖ Close</button>'
   document.body.appendChild(banner)
 
-  // Celebratory sound
   try {
     const ctx = new(window.AudioContext||window.webkitAudioContext)()
     const notes = [523,659,784,1047]
