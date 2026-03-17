@@ -112,10 +112,13 @@
 
     <!-- Confirmed Bookings -->
     <div id="bookedSection">
-      <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:10px;">
-        <h2 style="margin:0;">✅ Confirmed Bookings <span id="bookedCount" style="font-size:14px;color:#a5d6a7;margin-left:8px;">0</span></h2>
-        <button onclick="shareBookingsPDF()" style="font-size:12px;padding:5px 12px;background:linear-gradient(135deg,#e53935,#b71c1c);">📄 PDF</button>
-      </div>
+     <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:10px;">
+  <h2 style="margin:0;">✅ Confirmed Bookings <span id="bookedCount" style="font-size:14px;color:#a5d6a7;margin-left:8px;">0</span></h2>
+  <div style="display:flex;gap:6px;flex-wrap:wrap;">
+    <button onclick="shareBookingsWhatsApp()" style="font-size:12px;padding:5px 12px;background:linear-gradient(135deg,#25d366,#128c7e);">📤 Share</button>
+    <button onclick="shareBookingsPDF()" style="font-size:12px;padding:5px 12px;background:linear-gradient(135deg,#e53935,#b71c1c);">📄 PDF</button>
+  </div>
+</div>
       <p id="noBookings">No confirmed bookings yet</p>
       <div style="max-height:220px;overflow-y:auto;border-radius:10px;">
         <table class="holdTable" id="bookedTable" style="display:none">
