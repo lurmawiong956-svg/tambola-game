@@ -656,15 +656,19 @@ socket.on("gameStarted", (data) => {
 
   const now = Date.now()
 
-  if(startTime && now < startTime){
+  if(data.calledNumbers && data.calledNumbers.length > 0){
+    // Numbers already called — game is live
+    goLive()
+  } else if(startTime && now < startTime){
+    // Countdown still running
     showScreen("countdownScreen")
     buildTicketList("ticketListCd","ticketInfoCd")
     startCountdown(startTime)
-  } else if(data.calledNumbers && data.calledNumbers.length > 0){
-    goLive()
   } else if(startTime && now >= startTime){
+    // Countdown finished but no numbers yet — go live
     goLive()
   } else {
+    // Game ready but not started yet — booking screen
     showScreen("bookingScreen")
     buildTicketList("ticketListPre","ticketInfoPre")
   }
