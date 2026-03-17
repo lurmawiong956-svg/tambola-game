@@ -6,11 +6,10 @@ const app    = express()
 const server = http.createServer(app)
 const io     = new Server(server, { cors: { origin: "*" } })
 
-// Serve static files from public/ or current directory
 const path = require("path")
 const fs = require("fs")
-const publicDir = fs.existsSync(path.join(__dirname, "public")) 
-  ? path.join(__dirname, "public") 
+const publicDir = fs.existsSync(path.join(__dirname, "public"))
+  ? path.join(__dirname, "public")
   : __dirname
 app.use(express.static(publicDir))
 
@@ -131,13 +130,11 @@ function checkPrizes(){
 
   const prizes = (active && active.length > 0) ? PRIZE_DEFS.filter(p => active.includes(p.key)) : PRIZE_DEFS
 
-  // Separate normal prizes from house prizes
   const normalPrizes = prizes.filter(p => !["fullHouse","secondHouse","thirdHouse"].includes(p.key))
   const doFullHouse  = prizes.some(p => p.key === "fullHouse")
   const doSecond     = prizes.some(p => p.key === "secondHouse")
   const doThird      = prizes.some(p => p.key === "thirdHouse")
 
-  // ── Check normal prizes (one winner each globally) ──
   Object.entries(booked).forEach(([tNum, playerName]) => {
     const ticketNum = parseInt(tNum)
     const sheetIdx  = Math.floor((ticketNum-1)/6)
@@ -146,9 +143,9 @@ function checkPrizes(){
     if(!ticket) return
 
     normalPrizes.forEach(prize => {
-      if(gameState.globalClaimed[prize.key]) return  // already claimed globally
+      if(gameState.globalClaimed[prize.key]) return
       const claimKey = ticketNum+"_"+prize.key
-      if(gameState.globalClaimed[claimKey]) return   // this ticket already claimed it
+      if(gameState.globalClaimed[claimKey]) return
       if(prize.check(ticket, marked)){
         gameState.globalClaimed[prize.key]  = { playerName, ticketNum }
         gameState.globalClaimed[claimKey]   = { playerName, ticketNum }
@@ -159,86 +156,57 @@ function checkPrizes(){
     })
   })
 
-  // ── Check Full House prizes (1st, 2nd, 3rd) — all in ONE single pass ──
-  //
-  // How it works:
-  //   1. Collect ALL tickets that currently have a full house AND haven't
-  //      won any house prize yet — in this one call.
-  //   2. Assign them 1st → 2nd → 3rd in order.
-  //   3. Once all three slots are filled, every remaining ticket is ignored
-  //      and can never claim again (blocked by per-ticket keys).
-  //
-  if(doFullHouse || doSecond || doThird) {
+  // ── Full House 1st / 2nd / 3rd — single pass ──
+  if(doFullHouse || doSecond || doThird){
     const fullHouseCheck = PRIZE_DEFS.find(p => p.key === "fullHouse").check
-
-    // Step 1: collect all new full house winners this call
     const newWinners = []
+
     Object.entries(booked).forEach(([tNum, playerName]) => {
-      // Skip if this ticket already claimed any house prize
       if(gameState.globalClaimed[tNum+"_fullHouse"])   return
       if(gameState.globalClaimed[tNum+"_secondHouse"]) return
       if(gameState.globalClaimed[tNum+"_thirdHouse"])  return
-
       const ticketNum = parseInt(tNum)
       const sheetIdx  = Math.floor((ticketNum-1)/6)
       const ticketIdx = (ticketNum-1)%6
       const ticket    = sheets[sheetIdx] && sheets[sheetIdx][ticketIdx]
       if(!ticket) return
-
-      if(fullHouseCheck(ticket, marked)){
-        newWinners.push({ ticketNum, playerName, tNum })
-      }
+      if(fullHouseCheck(ticket, marked)) newWinners.push({ ticketNum, playerName, tNum })
     })
 
-    // Step 2: assign 1st / 2nd / 3rd in order — re-read state each time
-    //         so assignments within the same loop stay consistent
     newWinners.forEach(({ ticketNum, playerName, tNum }) => {
       const has1st = !!gameState.globalClaimed["fullHouse"]
       const has2nd = !!gameState.globalClaimed["secondHouse"]
       const has3rd = !!gameState.globalClaimed["thirdHouse"]
 
-      if(doFullHouse && !has1st) {
-        // — 1st Full House —
+      if(doFullHouse && !has1st){
         gameState.globalClaimed["fullHouse"]       = { playerName, ticketNum }
         gameState.globalClaimed[tNum+"_fullHouse"] = { playerName, ticketNum }
         console.log("✅ Full House →", playerName, "Ticket #"+ticketNum)
         saveState()
         io.emit("prizeClaimed", { ticketNum, playerName, prize: "🎉 Full House", prizeKey: "fullHouse" })
-
-      } else if(doSecond && has1st && !has2nd) {
-        // — 2nd Full House —
+      } else if(doSecond && has1st && !has2nd){
         gameState.globalClaimed["secondHouse"]          = { playerName, ticketNum }
         gameState.globalClaimed[tNum+"_secondHouse"]    = { playerName, ticketNum }
         console.log("✅ Second Full House →", playerName, "Ticket #"+ticketNum)
         saveState()
         io.emit("prizeClaimed", { ticketNum, playerName, prize: "🥇 Second Full House", prizeKey: "secondHouse" })
-
-      } else if(doThird && has1st && has2nd && !has3rd) {
-        // — 3rd Full House —
+      } else if(doThird && has1st && has2nd && !has3rd){
         gameState.globalClaimed["thirdHouse"]           = { playerName, ticketNum }
         gameState.globalClaimed[tNum+"_thirdHouse"]     = { playerName, ticketNum }
         console.log("✅ Third Full House →", playerName, "Ticket #"+ticketNum)
         saveState()
         io.emit("prizeClaimed", { ticketNum, playerName, prize: "🏅 Third Full House", prizeKey: "thirdHouse" })
-
       }
-      // All 3 slots already filled — this ticket is silently ignored.
-      // The per-ticket key is NOT set, so it won't retry on next call either
-      // because we check the global slots first (has1st && has2nd && has3rd = all true → falls through).
     })
   }
 
-  // ── Check game over ──
   const allDone = prizes.every(p => {
     if(p.key==="fullHouse")   return !!gameState.globalClaimed["fullHouse"]
     if(p.key==="secondHouse") return !!gameState.globalClaimed["secondHouse"]
     if(p.key==="thirdHouse")  return !!gameState.globalClaimed["thirdHouse"]
     return !!gameState.globalClaimed[p.key]
   })
-  if(allDone){
-    console.log("🎉 GAME OVER")
-    io.emit("gameOver")
-  }
+  if(allDone){ console.log("🎉 GAME OVER"); io.emit("gameOver") }
 }
 
 /* ── STATE PERSISTENCE ── */
@@ -292,29 +260,43 @@ let gameState = {
   globalClaimed: {}
 }
 
-// Load saved state on startup
 loadState()
 
 /* ── SOCKET ── */
 io.on("connection", (socket) => {
   console.log("Connected:", socket.id)
 
-  // Send state to late joiners
+  // ── Always send full state to every joiner ──
   if(gameState.started){
+    const now = Date.now()
+    const gameLive = gameState.calledNumbers.length > 0 ||
+                     (gameState.startTime && now >= gameState.startTime)
+
+    // Always send gameStarted so client has sheets + booked tickets
     socket.emit("gameStarted", {
       totalTickets:  gameState.totalTickets,
       sheets:        gameState.sheets,
       bookedTickets: gameState.bookedTickets,
       onHoldTickets: gameState.onHoldTickets,
       calledNumbers: gameState.calledNumbers,
-      startTime:     gameState.startTime
+      startTime:     gameState.startTime,
+      gameLive:      gameLive   // ← extra flag so client knows for sure
     })
-    if(gameState.startTime && Date.now() < gameState.startTime){
-      socket.emit("gameCountdown", { startTime: gameState.startTime, activePrizes: gameState.activePrizes })
+
+    // Send countdown if still running
+    if(gameState.startTime && now < gameState.startTime){
+      socket.emit("gameCountdown", {
+        startTime:    gameState.startTime,
+        activePrizes: gameState.activePrizes
+      })
     }
+
+    // Send existing winners
     if(Object.keys(gameState.globalClaimed).length > 0){
       socket.emit("existingClaims", gameState.globalClaimed)
     }
+
+    // Send active prizes
     if(gameState.activePrizes && gameState.activePrizes.length > 0){
       socket.emit("activePrizesUpdated", gameState.activePrizes)
     }
@@ -335,7 +317,8 @@ io.on("connection", (socket) => {
       bookedTickets: gameState.bookedTickets,
       onHoldTickets: gameState.onHoldTickets,
       calledNumbers: gameState.calledNumbers,
-      startTime:     null
+      startTime:     null,
+      gameLive:      false
     })
   })
 
@@ -372,7 +355,6 @@ io.on("connection", (socket) => {
     delete gameState.onHoldTickets[ticketNum]
     console.log("✅ Ticket #"+ticketNum+" confirmed for", hold.playerName)
     saveState()
-    console.log("   Total booked now:", Object.keys(gameState.bookedTickets).length)
     io.emit("ticketBooked", { ticketNum, playerName: hold.playerName })
     io.emit("holdRemoved", ticketNum)
     checkPrizes()
@@ -390,14 +372,11 @@ io.on("connection", (socket) => {
   socket.on("callNumber", (payload) => {
     const number = typeof payload === "object" ? payload.number : payload
     const activePrizes = typeof payload === "object" ? payload.activePrizes : null
-
     gameState.calledNumbers.push(number)
-    if(activePrizes && activePrizes.length > 0){
-      gameState.activePrizes = activePrizes
-    }
+    if(activePrizes && activePrizes.length > 0) gameState.activePrizes = activePrizes
     io.emit("numberCalled", number)
     saveState()
-    console.log("📣 Number:", number, "| Booked:", Object.keys(gameState.bookedTickets), "| Active:", gameState.activePrizes)
+    console.log("📣 Number:", number, "| Booked:", Object.keys(gameState.bookedTickets).length, "| Active:", gameState.activePrizes)
     checkPrizes()
   })
 
@@ -408,7 +387,7 @@ io.on("connection", (socket) => {
     checkPrizes()
   })
 
-  socket.on("prizeClaimed", () => {})  // handled server-side only
+  socket.on("prizeClaimed", () => {})
 
   socket.on("resetGame", () => {
     gameState = {
