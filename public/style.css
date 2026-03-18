@@ -511,97 +511,140 @@ hr{
 }
 
 /* ════════════════════════════════
-   MOBILE RESPONSIVE
+   MOBILE RESPONSIVE — fully automatic
+   scales to any phone screen size
+   PC (>600px) stays exactly the same
    ════════════════════════════════ */
 @media (max-width: 600px) {
 
-  body { padding: 12px 6px; }
+  body { padding: 2vw 1.5vw; }
 
-  h1 { font-size: 22px; letter-spacing: 1px; }
-  h2 { font-size: 15px; margin: 14px 0 8px; }
+  h1 { font-size: 5.5vw; letter-spacing: 0.5vw; margin-bottom: 1vw; }
+  h2 { font-size: 3.5vw; margin: 2.5vw 0 1.5vw; letter-spacing: 0; }
 
-  /* Current number */
-  .current-number-box { padding: 8px 28px; border-radius: 12px; }
-  #currentNumber { font-size: 48px; }
-  .cnum-label { font-size: 12px; }
+  hr { margin: 3vw auto; }
+
+  /* Current number box */
+  .current-number-box {
+    padding: 1.5vw 5vw;
+    border-radius: 2.5vw;
+    margin: 1vw auto 2.5vw;
+  }
+  #currentNumber { font-size: 10vw; }
+  .cnum-label { font-size: 2.5vw; }
 
   /* Called numbers board */
   .board {
     grid-template-columns: repeat(9, 1fr);
-    gap: 3px;
+    gap: 1vw;
     max-width: 100%;
+    margin: 1.5vw auto 3vw;
   }
   .number {
-    height: 36px;
-    font-size: 12px;
-    border-radius: 6px;
+    height: 8vw;
+    font-size: 3vw;
+    border-radius: 1vw;
+  }
+  .number.called {
+    transform: scale(1.02);
   }
 
   /* Ticket card */
   .ticketCard {
-    padding: 10px 6px;
-    border-radius: 12px;
+    padding: 1.5vw 1vw;
+    border-radius: 2.5vw;
+    margin: 1vw auto;
+    width: 100%;
   }
 
   /* Ticket header */
   .ticket-header {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 2px;
-    padding: 7px 10px;
-    border-radius: 7px;
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1vw;
+    padding: 1.2vw 2vw;
+    border-radius: 1.5vw;
+    margin-bottom: 1.5vw;
+    flex-wrap: wrap;
   }
-  .ticket-label { font-size: 12px; }
-  .ticket-name  { font-size: 12px; }
+  .ticket-label { font-size: 2.8vw; }
+  .ticket-name  { font-size: 2.8vw; }
 
-  /* Ticket grid — fill full width */
+  /* Ticket grid */
   .ticket {
     grid-template-columns: repeat(9, 1fr);
-    gap: 3px;
+    gap: 1vw;
     width: 100%;
+    margin: 1vw auto;
   }
   .cell {
     width: 100%;
-    height: 38px;
-    font-size: 12px;
-    border-radius: 5px;
+    height: 8.5vw;
+    font-size: 3vw;
+    border-radius: 1vw;
+    border-width: 1px;
+  }
+  .cell.marked {
+    transform: scale(1.03);
   }
 
   /* Ticket buttons on booking screen */
   .ticketButton {
-    width: 46px;
-    height: 46px;
-    font-size: 13px;
-    border-radius: 10px;
+    width: 10.5vw;
+    height: 10.5vw;
+    font-size: 3.2vw;
+    border-radius: 2vw;
+    border-width: 1.5px;
   }
-  .sheetRow { gap: 5px; flex-wrap: wrap; }
-  .sheetBlock { padding: 10px 8px; }
-  .sheetLabel { font-size: 10px; }
+  .sheetRow { gap: 1.5vw; flex-wrap: wrap; justify-content: center; }
+  .sheetBlock { padding: 2vw 1.5vw; margin-bottom: 2vw; border-radius: 3vw; }
+  .sheetLabel { font-size: 2.2vw; margin-bottom: 1.5vw; }
 
   /* Selection row */
-  .selectionRow { gap: 6px; }
-  .selectionRow input[type="text"] { width: 100%; max-width: 280px; }
-  #selectionCount { min-width: unset; font-size: 13px; }
+  .selectionRow { gap: 1.5vw; }
+  .selectionRow input[type="text"] { width: 100%; max-width: 65vw; font-size: 3.2vw; padding: 2vw 2.5vw; }
+  #selectionCount { min-width: unset; font-size: 3vw; }
 
   /* Search */
-  .searchRow { gap: 6px; }
-  .searchRow input { width: 100%; max-width: 280px; font-size: 14px; padding: 10px 14px; }
+  .searchRow { gap: 1.5vw; }
+  .searchRow input { width: 100%; max-width: 68vw; font-size: 3.2vw; padding: 2vw 3vw; border-radius: 3vw; }
 
   /* Countdown */
-  .countdown-box { padding: 16px 28px; border-radius: 14px; }
-  .countdown-number { font-size: 60px; }
-  .countdown-label { font-size: 12px; }
-  .countdown-sub { font-size: 11px; }
-
-  /* Admin setup */
-  .admin-setup, .admin-game { min-width: unset; width: 100%; padding: 16px 12px; }
+  .countdown-box { padding: 3vw 6vw; border-radius: 3.5vw; margin: 2.5vw auto; }
+  .countdown-number { font-size: 14vw; }
+  .countdown-label { font-size: 2.8vw; letter-spacing: 0.5vw; }
+  .countdown-sub { font-size: 2.5vw; }
 
   /* Wait message */
-  #waitMsg { font-size: 15px; padding: 24px 16px; }
+  #waitMsg { font-size: 3.5vw; padding: 4vw 3vw; margin: 4vw auto; border-radius: 3vw; }
 
   /* Buttons */
-  button { font-size: 13px; padding: 9px 16px; }
+  button { font-size: 3vw; padding: 2vw 3.5vw; margin: 0.5vw; border-radius: 2.5vw; }
 
   /* Input */
-  input[type="text"] { width: 100%; font-size: 14px; }
+  input[type="text"] { width: 100%; font-size: 3.2vw; padding: 2vw 2.5vw; border-radius: 2.5vw; }
+
+  /* Admin setup */
+  .admin-setup, .admin-game { min-width: unset; width: 100%; padding: 3vw 2vw; border-radius: 3vw; }
+
+  /* Winners section */
+  #winnersSection, #winnersSectionCd {
+    padding: 2.5vw 2vw;
+    margin: 2vw auto;
+    border-radius: 2.5vw;
+  }
+
+  /* My tickets list */
+  #myTicketsList, #myTicketsListPre, #myTicketsListCd {
+    max-height: 60vw;
+    overflow-y: auto;
+  }
+
+  /* All tickets list */
+  #ticketList {
+    height: auto !important;
+    max-height: 75vh !important;
+    overflow-y: scroll !important;
+  }
 }
