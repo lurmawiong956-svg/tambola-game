@@ -20,14 +20,8 @@ const MONGODB_URI = process.env.MONGODB_URI ||
   "mongodb+srv://lurmawiong956_db_user:Lur%4012345@tambola.u98nv0u.mongodb.net/tambola?retryWrites=true&w=majority&appName=tambola"
 
 mongoose.connect(MONGODB_URI)
-  .then(() => {
-    console.log("✅ MongoDB connected")
-    loadState()
-  })
-  .catch(e => {
-    console.log("❌ MongoDB connection error:", e.message)
-    console.log("⚠️ Running without database — state will be lost on restart")
-  })
+  .then(() => { console.log("✅ MongoDB connected"); loadState() })
+  .catch(e => console.log("❌ MongoDB error:", e.message))
 
 /* ── MONGODB SCHEMA ── */
 const GameSchema = new mongoose.Schema({
@@ -156,9 +150,7 @@ function checkPrizes(){
   const booked = gameState.bookedTickets
   const sheets = gameState.sheets
   const active = gameState.activePrizes
-
   if(!marked.length || !Object.keys(booked).length) return
-
   const prizes = (active && active.length > 0) ? PRIZE_DEFS.filter(p => active.includes(p.key)) : PRIZE_DEFS
   const normalPrizes = prizes.filter(p => !["fullHouse","secondHouse","thirdHouse"].includes(p.key))
   const doFullHouse  = prizes.some(p => p.key === "fullHouse")
@@ -226,32 +218,24 @@ function checkPrizes(){
   if(allDone){ console.log("🎉 GAME OVER"); io.emit("gameOver") }
 }
 
-/* ── SAVE STATE TO MONGODB ── */
+/* ── SAVE / LOAD ── */
 async function saveState(){
   try {
     const toSave = {
-      started:       gameState.started,
-      totalTickets:  gameState.totalTickets,
-      bookedTickets: gameState.bookedTickets,
-      onHoldTickets: gameState.onHoldTickets,
-      calledNumbers: gameState.calledNumbers,
-      startTime:     gameState.startTime,
-      activePrizes:  gameState.activePrizes,
-      globalClaimed: gameState.globalClaimed
+      started: gameState.started, totalTickets: gameState.totalTickets,
+      bookedTickets: gameState.bookedTickets, onHoldTickets: gameState.onHoldTickets,
+      calledNumbers: gameState.calledNumbers, startTime: gameState.startTime,
+      activePrizes: gameState.activePrizes, globalClaimed: gameState.globalClaimed
     }
     await Game.findByIdAndUpdate("gamestate", { $set: toSave }, { upsert: true, new: true })
   } catch(e){ console.log("Save error:", e.message) }
 }
 
-/* ── LOAD STATE FROM MONGODB ── */
 async function loadState(){
   try {
     const saved = await Game.findById("gamestate")
-    if(!saved || !saved.started){
-      console.log("No saved game state found")
-      return
-    }
-    console.log("📂 Restoring from MongoDB:", saved.totalTickets, "tickets,", saved.calledNumbers.length, "numbers called")
+    if(!saved || !saved.started){ console.log("No saved state"); return }
+    console.log("📂 Restoring:", saved.totalTickets, "tickets,", saved.calledNumbers.length, "numbers")
     gameState.started       = saved.started
     gameState.totalTickets  = saved.totalTickets
     gameState.bookedTickets = saved.bookedTickets || {}
@@ -261,21 +245,15 @@ async function loadState(){
     gameState.activePrizes  = saved.activePrizes  || []
     gameState.globalClaimed = saved.globalClaimed || {}
     gameState.sheets        = generateAllSheets(saved.totalTickets)
-    console.log("✅ Game state restored successfully")
+    console.log("✅ State restored")
   } catch(e){ console.log("Load error:", e.message) }
 }
 
 /* ── GAME STATE ── */
 let gameState = {
-  started:       false,
-  totalTickets:  0,
-  sheets:        [],
-  bookedTickets: {},
-  onHoldTickets: {},
-  calledNumbers: [],
-  startTime:     null,
-  activePrizes:  [],
-  globalClaimed: {}
+  started: false, totalTickets: 0, sheets: [],
+  bookedTickets: {}, onHoldTickets: {}, calledNumbers: [],
+  startTime: null, activePrizes: [], globalClaimed: {}
 }
 
 /* ── SOCKET ── */
@@ -286,7 +264,6 @@ io.on("connection", (socket) => {
     const now = Date.now()
     const gameLive = gameState.calledNumbers.length > 0 ||
                      (gameState.startTime && now >= gameState.startTime)
-
     socket.emit("gameStarted", {
       totalTickets:  gameState.totalTickets,
       sheets:        gameState.sheets,
@@ -296,18 +273,12 @@ io.on("connection", (socket) => {
       startTime:     gameState.startTime,
       gameLive:      gameLive
     })
-
     if(gameState.startTime && now < gameState.startTime){
-      socket.emit("gameCountdown", {
-        startTime:    gameState.startTime,
-        activePrizes: gameState.activePrizes
-      })
+      socket.emit("gameCountdown", { startTime: gameState.startTime, activePrizes: gameState.activePrizes })
     }
-
     if(Object.keys(gameState.globalClaimed).length > 0){
       socket.emit("existingClaims", gameState.globalClaimed)
     }
-
     if(gameState.activePrizes && gameState.activePrizes.length > 0){
       socket.emit("activePrizesUpdated", gameState.activePrizes)
     }
@@ -320,23 +291,17 @@ io.on("connection", (socket) => {
       bookedTickets: {}, onHoldTickets: {}, calledNumbers: [],
       startTime: null, activePrizes: [], globalClaimed: {}
     }
-    console.log("Game ready:", count, "tickets")
     saveState()
     io.emit("gameStarted", {
-      totalTickets:  gameState.totalTickets,
-      sheets:        gameState.sheets,
-      bookedTickets: gameState.bookedTickets,
-      onHoldTickets: gameState.onHoldTickets,
-      calledNumbers: gameState.calledNumbers,
-      startTime:     null,
-      gameLive:      false
+      totalTickets: gameState.totalTickets, sheets: gameState.sheets,
+      bookedTickets: gameState.bookedTickets, onHoldTickets: gameState.onHoldTickets,
+      calledNumbers: gameState.calledNumbers, startTime: null, gameLive: false
     })
   })
 
   socket.on("startGame", ({ startDelay, callInterval, activePrizes }) => {
     gameState.startTime    = Date.now() + (startDelay * 1000)
     gameState.activePrizes = activePrizes && activePrizes.length > 0 ? activePrizes : []
-    console.log("🚀 Game starts in", startDelay, "s")
     saveState()
     io.emit("gameCountdown", { startTime: gameState.startTime, activePrizes: gameState.activePrizes })
     checkPrizes()
@@ -347,15 +312,9 @@ io.on("connection", (socket) => {
     tickets.forEach(ticketNum => {
       if(gameState.bookedTickets[ticketNum]) failed.push({ ticketNum, reason:"Already booked" })
       else if(gameState.onHoldTickets[ticketNum]) failed.push({ ticketNum, reason:"Already on hold" })
-      else {
-        gameState.onHoldTickets[ticketNum] = { playerName, socketId: socket.id }
-        held.push({ ticketNum, playerName })
-      }
+      else { gameState.onHoldTickets[ticketNum] = { playerName, socketId: socket.id }; held.push({ ticketNum, playerName }) }
     })
-    if(held.length > 0){
-      io.emit("ticketsOnHold", held)
-      io.emit("holdRequest", { held, playerName, socketId: socket.id })
-    }
+    if(held.length > 0){ io.emit("ticketsOnHold", held); io.emit("holdRequest", { held, playerName, socketId: socket.id }) }
     if(failed.length > 0) socket.emit("holdFailed", failed)
   })
 
@@ -364,7 +323,6 @@ io.on("connection", (socket) => {
     if(!hold) return
     gameState.bookedTickets[ticketNum] = hold.playerName
     delete gameState.onHoldTickets[ticketNum]
-    console.log("✅ Ticket #"+ticketNum+" confirmed for", hold.playerName)
     saveState()
     io.emit("ticketBooked", { ticketNum, playerName: hold.playerName })
     io.emit("holdRemoved", ticketNum)
@@ -380,6 +338,16 @@ io.on("connection", (socket) => {
     io.to(socketId).emit("yourHoldReleased", ticketNum)
   })
 
+  // ── RELEASE CONFIRMED BOOKING ── 
+  socket.on("releaseConfirmedBooking", (ticketNum) => {
+    if(!gameState.bookedTickets[ticketNum]) return
+    const playerName = gameState.bookedTickets[ticketNum]
+    delete gameState.bookedTickets[ticketNum]
+    console.log("❌ Released confirmed booking: Ticket #"+ticketNum+" from", playerName)
+    saveState()
+    io.emit("bookingReleased", { ticketNum, playerName })
+  })
+
   socket.on("callNumber", (payload) => {
     const number       = typeof payload === "object" ? payload.number : payload
     const activePrizes = typeof payload === "object" ? payload.activePrizes : null
@@ -387,7 +355,6 @@ io.on("connection", (socket) => {
     if(activePrizes && activePrizes.length > 0) gameState.activePrizes = activePrizes
     io.emit("numberCalled", number)
     saveState()
-    console.log("📣 Number:", number, "| Total called:", gameState.calledNumbers.length)
     checkPrizes()
   })
 
