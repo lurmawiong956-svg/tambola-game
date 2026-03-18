@@ -7,11 +7,42 @@ const server = http.createServer(app)
 const io     = new Server(server, { cors: { origin: "*" } })
 
 const path = require("path")
-const fs = require("fs")
+const fs   = require("fs")
+const mongoose = require("mongoose")
+
 const publicDir = fs.existsSync(path.join(__dirname, "public"))
   ? path.join(__dirname, "public")
   : __dirname
 app.use(express.static(publicDir))
+
+/* ── MONGODB CONNECTION ── */
+const MONGODB_URI = process.env.MONGODB_URI ||
+  "mongodb+srv://lurmawiong956_db_user:Lur%4012345@tambola.u98nv0u.mongodb.net/tambola?retryWrites=true&w=majority&appName=tambola"
+
+mongoose.connect(MONGODB_URI)
+  .then(() => {
+    console.log("✅ MongoDB connected")
+    loadState()
+  })
+  .catch(e => {
+    console.log("❌ MongoDB connection error:", e.message)
+    console.log("⚠️ Running without database — state will be lost on restart")
+  })
+
+/* ── MONGODB SCHEMA ── */
+const GameSchema = new mongoose.Schema({
+  _id:           { type: String, default: "gamestate" },
+  started:       Boolean,
+  totalTickets:  Number,
+  bookedTickets: { type: mongoose.Schema.Types.Mixed, default: {} },
+  onHoldTickets: { type: mongoose.Schema.Types.Mixed, default: {} },
+  calledNumbers: [Number],
+  startTime:     Number,
+  activePrizes:  [String],
+  globalClaimed: { type: mongoose.Schema.Types.Mixed, default: {} }
+}, { _id: false })
+
+const Game = mongoose.model("Game", GameSchema)
 
 /* ── TICKET GENERATION ── */
 function shuffle(arr){
@@ -136,9 +167,7 @@ function checkPrizes(){
 
   Object.entries(booked).forEach(([tNum, playerName]) => {
     const ticketNum = parseInt(tNum)
-    const sheetIdx  = Math.floor((ticketNum-1)/6)
-    const ticketIdx = (ticketNum-1)%6
-    const ticket    = sheets[sheetIdx] && sheets[sheetIdx][ticketIdx]
+    const ticket    = sheets[Math.floor((ticketNum-1)/6)] && sheets[Math.floor((ticketNum-1)/6)][(ticketNum-1)%6]
     if(!ticket) return
     normalPrizes.forEach(prize => {
       if(gameState.globalClaimed[prize.key]) return
@@ -197,64 +226,43 @@ function checkPrizes(){
   if(allDone){ console.log("🎉 GAME OVER"); io.emit("gameOver") }
 }
 
-/* ══════════════════════════════════════════════
-   STATE PERSISTENCE
-   Uses both file (local) AND in-memory backup.
-   On Render, files are wiped on restart — so we
-   also keep a module-level backup object that
-   survives within the same process lifetime.
-   ══════════════════════════════════════════════ */
-const STATE_FILE = path.join(__dirname, "gamestate.json")
-
-// In-memory backup — survives within same Node process
-let memoryBackup = null
-
-function saveState(){
-  const toSave = {
-    started:       gameState.started,
-    totalTickets:  gameState.totalTickets,
-    bookedTickets: gameState.bookedTickets,
-    onHoldTickets: gameState.onHoldTickets,
-    calledNumbers: gameState.calledNumbers,
-    startTime:     gameState.startTime,
-    activePrizes:  gameState.activePrizes,
-    globalClaimed: gameState.globalClaimed
-  }
-  // Always save to memory
-  memoryBackup = JSON.parse(JSON.stringify(toSave))
-  // Try file save (works locally, may fail on Render)
-  try { fs.writeFileSync(STATE_FILE, JSON.stringify(toSave)) } catch(e){}
+/* ── SAVE STATE TO MONGODB ── */
+async function saveState(){
+  try {
+    const toSave = {
+      started:       gameState.started,
+      totalTickets:  gameState.totalTickets,
+      bookedTickets: gameState.bookedTickets,
+      onHoldTickets: gameState.onHoldTickets,
+      calledNumbers: gameState.calledNumbers,
+      startTime:     gameState.startTime,
+      activePrizes:  gameState.activePrizes,
+      globalClaimed: gameState.globalClaimed
+    }
+    await Game.findByIdAndUpdate("gamestate", { $set: toSave }, { upsert: true, new: true })
+  } catch(e){ console.log("Save error:", e.message) }
 }
 
-function loadState(){
-  let saved = null
-
-  // Try file first
+/* ── LOAD STATE FROM MONGODB ── */
+async function loadState(){
   try {
-    if(fs.existsSync(STATE_FILE)){
-      saved = JSON.parse(fs.readFileSync(STATE_FILE, "utf8"))
-      console.log("📂 Loaded state from file")
+    const saved = await Game.findById("gamestate")
+    if(!saved || !saved.started){
+      console.log("No saved game state found")
+      return
     }
-  } catch(e){ console.log("File load error:", e.message) }
-
-  // Fall back to memory backup
-  if(!saved && memoryBackup){
-    saved = memoryBackup
-    console.log("📂 Loaded state from memory backup")
-  }
-
-  if(!saved || !saved.started) return
-
-  console.log("✅ Restoring:", saved.totalTickets, "tickets,", saved.calledNumbers.length, "numbers called")
-  gameState.started       = saved.started
-  gameState.totalTickets  = saved.totalTickets
-  gameState.bookedTickets = saved.bookedTickets || {}
-  gameState.onHoldTickets = saved.onHoldTickets || {}
-  gameState.calledNumbers = saved.calledNumbers || []
-  gameState.startTime     = saved.startTime
-  gameState.activePrizes  = saved.activePrizes  || []
-  gameState.globalClaimed = saved.globalClaimed || {}
-  gameState.sheets        = generateAllSheets(saved.totalTickets)
+    console.log("📂 Restoring from MongoDB:", saved.totalTickets, "tickets,", saved.calledNumbers.length, "numbers called")
+    gameState.started       = saved.started
+    gameState.totalTickets  = saved.totalTickets
+    gameState.bookedTickets = saved.bookedTickets || {}
+    gameState.onHoldTickets = saved.onHoldTickets || {}
+    gameState.calledNumbers = saved.calledNumbers || []
+    gameState.startTime     = saved.startTime
+    gameState.activePrizes  = saved.activePrizes  || []
+    gameState.globalClaimed = saved.globalClaimed || {}
+    gameState.sheets        = generateAllSheets(saved.totalTickets)
+    console.log("✅ Game state restored successfully")
+  } catch(e){ console.log("Load error:", e.message) }
 }
 
 /* ── GAME STATE ── */
@@ -270,18 +278,14 @@ let gameState = {
   globalClaimed: {}
 }
 
-loadState()
-
 /* ── SOCKET ── */
 io.on("connection", (socket) => {
-  console.log("Connected:", socket.id, "| Game started:", gameState.started, "| Numbers called:", gameState.calledNumbers.length)
+  console.log("Connected:", socket.id, "| Started:", gameState.started, "| Numbers:", gameState.calledNumbers.length)
 
   if(gameState.started){
     const now = Date.now()
     const gameLive = gameState.calledNumbers.length > 0 ||
                      (gameState.startTime && now >= gameState.startTime)
-
-    console.log("Sending gameStarted to late joiner | gameLive:", gameLive)
 
     socket.emit("gameStarted", {
       totalTickets:  gameState.totalTickets,
@@ -293,7 +297,6 @@ io.on("connection", (socket) => {
       gameLive:      gameLive
     })
 
-    // Send countdown if still running
     if(gameState.startTime && now < gameState.startTime){
       socket.emit("gameCountdown", {
         startTime:    gameState.startTime,
@@ -301,12 +304,10 @@ io.on("connection", (socket) => {
       })
     }
 
-    // Send existing winners
     if(Object.keys(gameState.globalClaimed).length > 0){
       socket.emit("existingClaims", gameState.globalClaimed)
     }
 
-    // Send active prizes
     if(gameState.activePrizes && gameState.activePrizes.length > 0){
       socket.emit("activePrizesUpdated", gameState.activePrizes)
     }
@@ -380,7 +381,7 @@ io.on("connection", (socket) => {
   })
 
   socket.on("callNumber", (payload) => {
-    const number = typeof payload === "object" ? payload.number : payload
+    const number       = typeof payload === "object" ? payload.number : payload
     const activePrizes = typeof payload === "object" ? payload.activePrizes : null
     gameState.calledNumbers.push(number)
     if(activePrizes && activePrizes.length > 0) gameState.activePrizes = activePrizes
@@ -398,14 +399,13 @@ io.on("connection", (socket) => {
 
   socket.on("prizeClaimed", () => {})
 
-  socket.on("resetGame", () => {
+  socket.on("resetGame", async () => {
     gameState = {
       started: false, totalTickets: 0, sheets: [],
       bookedTickets: {}, onHoldTickets: {}, calledNumbers: [],
       startTime: null, activePrizes: [], globalClaimed: {}
     }
-    memoryBackup = null
-    try { fs.unlinkSync(STATE_FILE) } catch(e){}
+    try { await Game.findByIdAndDelete("gamestate") } catch(e){}
     io.emit("resetGame")
   })
 
