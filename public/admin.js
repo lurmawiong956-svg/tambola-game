@@ -6,7 +6,6 @@ function doLogin(){
   const user = document.getElementById("loginUser").value.trim()
   const pass = document.getElementById("loginPass").value
   const err  = document.getElementById("loginError")
-
   if(user === "warbah13" && pass === "Lur@12345"){
     document.getElementById("loginScreen").style.display = "none"
     document.getElementById("adminApp").style.display    = "block"
@@ -32,7 +31,7 @@ let numbers           = []
 let calledNumbers     = []
 let pendingHolds      = {}
 let confirmedBookings = {}
-let winnersList = []
+let winnersList       = []
 let autoTimer         = null
 let autoPaused        = false
 let callIntervalSec   = 10
@@ -58,7 +57,7 @@ const ALL_PRIZES = [
   { key:"thirdHouse",   label:"🏅 Third Full House"   }
 ]
 
-/* ── PRIZE CHECKBOXES (pre-game setup) ── */
+/* ── PRIZE CHECKBOXES ── */
 function renderPrizeCheckboxes(){
   const container = document.getElementById("prizeCheckboxes")
   if(!container) return
@@ -81,7 +80,7 @@ function getActivePrizes(){
   return ALL_PRIZES.filter(p => { const cb = document.getElementById("prize_"+p.key); return cb && cb.checked }).map(p => p.key)
 }
 
-/* ── GAME PRIZE TOGGLES (live during game) ── */
+/* ── GAME PRIZE TOGGLES ── */
 function renderGamePrizeToggles(activePrizes){
   const container = document.getElementById("gamePrizeToggles")
   if(!container) return
@@ -137,12 +136,10 @@ function setReady(){
   const errorEl = document.getElementById("setupError")
   let count = parseInt(document.getElementById("ticketCount").value)
   if(!count || count < 6 || count > 1000){ errorEl.innerText = "Tickets must be between 6 and 1000."; return }
-  if(count % 6 !== 0){ count = Math.floor(count/6)*6; errorEl.innerText = "Rounded to "+count+" tickets (must be multiple of 6)." }
+  if(count % 6 !== 0){ count = Math.floor(count/6)*6; errorEl.innerText = "Rounded to "+count+" tickets." }
   else { errorEl.innerText = "" }
-
   socket.emit("setTicketCount", { count })
   if(window.speechSynthesis){ const u=new SpeechSynthesisUtterance(""); u.volume=0; window.speechSynthesis.speak(u) }
-
   document.getElementById("setupSection").style.display = "none"
   document.getElementById("gameSection").style.display  = "block"
   document.getElementById("timingSetup").style.display  = "block"
@@ -161,18 +158,14 @@ function startGame(){
   callIntervalSec = parseInt(document.getElementById("callInterval").value) || 10
   const delay     = parseInt(document.getElementById("startDelay").value)   || 30
   const activePrizes = getActivePrizes()
-
   socket.emit("startGame", { startDelay: delay, callInterval: callIntervalSec, activePrizes })
-
   document.getElementById("timingSetup").style.display        = "none"
   document.getElementById("resetBtnPre").style.display        = "none"
   document.getElementById("activePrizeSection").style.display = "block"
   document.getElementById("gameInfo").innerText = count+" tickets  ·  countdown "+delay+"s  ·  auto-call every "+callIntervalSec+"s"
   document.getElementById("autoStatus").innerText = "⏳ Auto-call starts after countdown ("+delay+"s)..."
-
   renderGamePrizeToggles(activePrizes)
   socket.emit("updateActivePrizes", activePrizes)
-
   setTimeout(() => {
     document.getElementById("gameControls").style.display = "block"
     sendActivePrizesUpdate()
@@ -264,10 +257,7 @@ function getActivePrizesFromToggles(){
     return btn && btn.getAttribute("data-on") === "true"
   }).map(p => p.key)
   if(toggleBtns.length > 0) return toggleBtns
-  return ALL_PRIZES.filter(p => {
-    const cb = document.getElementById("prize_"+p.key)
-    return cb && cb.checked
-  }).map(p => p.key)
+  return ALL_PRIZES.filter(p => { const cb = document.getElementById("prize_"+p.key); return cb && cb.checked }).map(p => p.key)
 }
 
 /* ── RESET ── */
@@ -303,11 +293,19 @@ function createBoard(){
   }
 }
 
-/* ── CONFIRM / RELEASE ── */
+/* ── CONFIRM / RELEASE HOLD ── */
 function confirmHold(ticketNum){ socket.emit("confirmHold", ticketNum); delete pendingHolds[ticketNum]; renderHoldTable() }
 function releaseHold(ticketNum){
   if(!confirm("Release hold on Ticket #"+ticketNum+"?")) return
   socket.emit("releaseHold", ticketNum); delete pendingHolds[ticketNum]; renderHoldTable()
+}
+
+/* ── RELEASE CONFIRMED BOOKING ── */
+function releaseConfirmedBooking(ticketNum){
+  if(!confirm("Release confirmed booking for Ticket #"+ticketNum+"?\nThe ticket will become available again.")) return
+  socket.emit("releaseConfirmedBooking", ticketNum)
+  delete confirmedBookings[ticketNum]
+  renderBookedTable()
 }
 
 /* ── RENDER HOLD TABLE ── */
@@ -343,7 +341,8 @@ function renderBookedTable(){
     const tr=document.createElement("tr")
     tr.innerHTML='<td style="color:#ffcc80;font-weight:700;">#'+num+'</td>'+
       '<td style="color:rgba(255,255,255,0.6)">Sheet '+sheet+'</td>'+
-      '<td style="color:#a5d6a7;font-weight:600;">'+name+'</td>'
+      '<td style="color:#a5d6a7;font-weight:600;">'+name+'</td>'+
+      '<td><button class="releaseBtn" onclick="releaseConfirmedBooking('+num+')">❌ Release</button></td>'
     tbody.appendChild(tr)
   })
 }
@@ -367,11 +366,18 @@ function notifyAdmin(held){
 socket.on("holdRequest", ({held}) => { held.forEach(({ticketNum,playerName})=>{pendingHolds[ticketNum]={playerName}}); renderHoldTable(); notifyAdmin(held) })
 socket.on("ticketBooked", ({ticketNum,playerName}) => { delete pendingHolds[ticketNum]; confirmedBookings[ticketNum]=playerName; renderHoldTable(); renderBookedTable() })
 socket.on("holdRemoved", (ticketNum) => { delete pendingHolds[ticketNum]; renderHoldTable() })
+
+socket.on("bookingReleased", ({ ticketNum }) => {
+  delete confirmedBookings[ticketNum]
+  renderBookedTable()
+})
+
 socket.on("numberCalled", (number) => {
   const num = typeof number === "object" ? number.number : number
   document.getElementById("currentNumber").innerText = num
   const box = document.getElementById("b"+num); if(box) box.classList.add("called")
 })
+
 socket.on("gameStarted", (data) => {
   if(!isLoggedIn){ pendingRestore = data; return }
   restoreAdminState(data)
@@ -382,14 +388,11 @@ function restoreAdminState(data){
   pendingHolds={}; confirmedBookings={}
   if(onHoldTickets) Object.entries(onHoldTickets).forEach(([n,d])=>{pendingHolds[n]={playerName:d.playerName}})
   if(bookedTickets) Object.entries(bookedTickets).forEach(([n,name])=>{confirmedBookings[n]=name})
-
   if(totalTickets > 0){
     document.getElementById("setupSection").style.display = "none"
     document.getElementById("gameSection").style.display  = "block"
     document.getElementById("ticketCount").value          = totalTickets
-
     const gameIsLive = calledNumbers && calledNumbers.length > 0
-
     if(gameIsLive){
       document.getElementById("timingSetup").style.display    = "none"
       document.getElementById("resetBtnPre").style.display    = "none"
@@ -443,28 +446,21 @@ socket.on("prizeClaimed", ({ticketNum,playerName,prize}) => {
 /* ── SHARE BOOKINGS WHATSAPP ── */
 function shareBookingsWhatsApp(){
   if(Object.keys(confirmedBookings).length === 0){ alert("No confirmed bookings yet"); return }
-
-  const entries = Object.entries(confirmedBookings)
-    .sort((a,b) => parseInt(a[0]) - parseInt(b[0]))
-
+  const entries = Object.entries(confirmedBookings).sort((a,b) => parseInt(a[0]) - parseInt(b[0]))
   let msg = "🎱 *Tambola — Confirmed Bookings*\n"
   msg += "━━━━━━━━━━━━━━━━━━━━\n"
   msg += "Total: *"+entries.length+" tickets*\n\n"
-
   entries.forEach(([num, name], i) => {
     const sheet = Math.floor((num-1)/6)+1
     msg += (i+1)+". Ticket *#"+num+"* (Sheet "+sheet+") — "+name+"\n"
   })
-
   msg += "\n📅 "+new Date().toLocaleDateString()
-
   window.open("https://wa.me/?text="+encodeURIComponent(msg),"_blank")
 }
 
 /* ── SHARE BOOKINGS AS PDF ── */
 function shareBookingsPDF(){
   if(Object.keys(confirmedBookings).length === 0){ alert("No confirmed bookings yet"); return }
-
   const entries = Object.entries(confirmedBookings).sort((a,b)=>parseInt(a[0])-parseInt(b[0]))
   let html = `<!DOCTYPE html><html><head><title>Tambola Bookings</title>
   <style>
@@ -482,24 +478,15 @@ function shareBookingsPDF(){
   <table>
     <thead><tr><th>#</th><th>Ticket</th><th>Sheet</th><th>Player Name</th></tr></thead>
     <tbody>`
-
   entries.forEach(([num, name], i) => {
     const sheet = Math.floor((num-1)/6)+1
-    html += `<tr>
-      <td>${i+1}</td>
-      <td><strong>#${num}</strong></td>
-      <td>Sheet ${sheet}</td>
-      <td>${name}</td>
-    </tr>`
+    html += `<tr><td>${i+1}</td><td><strong>#${num}</strong></td><td>Sheet ${sheet}</td><td>${name}</td></tr>`
   })
-
   html += `</tbody></table>
   <div style="text-align:center;margin-top:20px;">
     <button onclick="window.print()" style="padding:10px 24px;font-size:15px;background:#1976d2;color:white;border:none;border-radius:6px;cursor:pointer;">🖨️ Print / Save PDF</button>
     <button onclick="window.close()" style="padding:10px 24px;font-size:15px;background:#888;color:white;border:none;border-radius:6px;cursor:pointer;margin-left:8px;">✖ Close</button>
-  </div>
-  </body></html>`
-
+  </div></body></html>`
   const win = window.open('','_blank','width=750,height=900')
   win.document.write(html)
   win.document.close()
@@ -521,7 +508,7 @@ function downloadWinners(){
   a.click()
 }
 
-/* ── SHARE WINNERS (WhatsApp) ── */
+/* ── SHARE WINNERS ── */
 function shareWinners(){
   if(winnersList.length===0){ alert("No winners yet"); return }
   let msg = "🎱 *Tambola Winners* 🎉\n\n"
@@ -561,7 +548,6 @@ socket.on("existingClaims", (claims) => {
 socket.on("gameOver", () => {
   clearInterval(autoTimer); autoTimer = null
   document.getElementById("autoStatus").innerText = "🎉 All prizes claimed — Game Over!"
-
   const banner = document.createElement("div")
   banner.style.cssText =
     "position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);" +
@@ -576,7 +562,6 @@ socket.on("gameOver", () => {
     '<button onclick="this.parentElement.remove();shareWinners()" style="padding:10px 24px;font-size:14px;background:#25d366;color:white;border:none;border-radius:10px;cursor:pointer;font-weight:700;margin:4px;">📤 Share Winners</button>' +
     '<button onclick="this.parentElement.remove()" style="padding:10px 24px;font-size:14px;background:rgba(255,255,255,0.15);color:white;border:none;border-radius:10px;cursor:pointer;margin:4px;">✖ Close</button>'
   document.body.appendChild(banner)
-
   try {
     const ctx = new(window.AudioContext||window.webkitAudioContext)()
     const notes = [523,659,784,1047]
