@@ -31,7 +31,7 @@ let numbers           = []
 let calledNumbers     = []
 let pendingHolds      = {}
 let confirmedBookings = {}
-let winnersList       = []
+let winnersList       = []   // flat array: { prizeKey, prize, playerName, ticketNum }
 let autoTimer         = null
 let autoPaused        = false
 let callIntervalSec   = 10
@@ -92,7 +92,7 @@ function renderGamePrizeToggles(activePrizes){
       + "background:rgba(255,255,255,0.05);border-radius:8px;border:1px solid rgba(255,255,255,0.08);"
     row.innerHTML =
       '<span style="font-size:13px;color:#fff;font-weight:500;">'+p.label+'</span>' +
-      '<div id="gtbtn_'+p.key+'" onclick="toggleGamePrize(\''+p.key+'\')" style="width:42px;height:22px;border-radius:11px;cursor:pointer;transition:all 0.2s;background:'+(isOn?'#43a047':'rgba(255,255,255,0.15)')+';position:relative;">' +
+      '<div id="gtbtn_'+p.key+'" data-on="'+(isOn?"true":"false")+'" onclick="toggleGamePrize(\''+p.key+'\')" style="width:42px;height:22px;border-radius:11px;cursor:pointer;transition:all 0.2s;background:'+(isOn?'#43a047':'rgba(255,255,255,0.15)')+';position:relative;">' +
         '<div id="gtdot_'+p.key+'" style="position:absolute;top:3px;'+(isOn?'right':'left')+':3px;width:16px;height:16px;border-radius:50%;background:white;transition:all 0.2s;"></div>' +
       '</div>'
     container.appendChild(row)
@@ -420,19 +420,49 @@ function restoreAdminState(data){
   renderHoldTable(); renderBookedTable()
 }
 
-socket.on("prizeClaimed", ({ticketNum,playerName,prize}) => {
-  winnersList.push({ prize, playerName, ticketNum })
+/* ── ADD WINNER TO LIST (handles multiple winners per prize) ── */
+function addWinnerToLog(prize, prizeKey, playerName, ticketNum){
+  // Check duplicate (same ticket + same prize)
+  if(winnersList.find(w => w.ticketNum === ticketNum && w.prizeKey === prizeKey)) return
+
+  winnersList.push({ prize, prizeKey, playerName, ticketNum })
+
   const noEl=document.getElementById("noPrizes"), log=document.getElementById("prizeLog")
   if(!log) return
   if(noEl) noEl.style.display="none"
+
   const sheet = Math.floor((ticketNum-1)/6)+1
-  const row=document.createElement("div")
-  row.style.cssText="display:flex;justify-content:space-between;align-items:center;padding:10px 14px;margin-bottom:8px;background:rgba(255,255,255,0.06);border-radius:10px;border:1px solid rgba(255,215,0,0.15);flex-wrap:wrap;gap:6px;"
-  row.innerHTML=
-    '<span style="font-size:15px;font-weight:700;color:#ffcc80;min-width:160px;">'+prize+'</span>'+
-    '<span style="font-size:14px;color:#a5d6a7;font-weight:600;">'+playerName+'</span>'+
-    '<span style="font-size:13px;color:rgba(255,255,255,0.5);">Ticket #'+ticketNum+' · Sheet '+sheet+'</span>'
-  log.insertBefore(row,log.firstChild)
+
+  // Check if a row for this prize already exists in the log
+  const existingGroup = document.getElementById("prizegroup_"+prizeKey)
+  if(existingGroup){
+    // Append another winner badge to the existing prize group
+    const winnersDiv = existingGroup.querySelector(".prize-winners-div")
+    if(winnersDiv){
+      const badge = document.createElement("span")
+      badge.style.cssText = "display:inline-flex;align-items:center;gap:6px;padding:4px 10px;background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.12);border-radius:20px;font-size:13px;"
+      badge.innerHTML = '<span style="color:#a5d6a7;font-weight:600;">'+playerName+'</span>'
+        +'<span style="color:rgba(255,255,255,0.4);font-size:11px;">#'+ticketNum+' · Sh '+sheet+'</span>'
+      winnersDiv.appendChild(badge)
+    }
+  } else {
+    // Create a new prize group row
+    const row = document.createElement("div")
+    row.id = "prizegroup_"+prizeKey
+    row.style.cssText = "padding:10px 14px;margin-bottom:8px;background:rgba(255,255,255,0.06);border-radius:10px;border:1px solid rgba(255,215,0,0.15);"
+    const winnersDiv = document.createElement("div")
+    winnersDiv.className = "prize-winners-div"
+    winnersDiv.style.cssText = "display:flex;flex-wrap:wrap;gap:6px;margin-top:6px;"
+    const badge = document.createElement("span")
+    badge.style.cssText = "display:inline-flex;align-items:center;gap:6px;padding:4px 10px;background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.12);border-radius:20px;font-size:13px;"
+    badge.innerHTML = '<span style="color:#a5d6a7;font-weight:600;">'+playerName+'</span>'
+      +'<span style="color:rgba(255,255,255,0.4);font-size:11px;">#'+ticketNum+' · Sh '+sheet+'</span>'
+    winnersDiv.appendChild(badge)
+    row.innerHTML = '<span style="font-size:15px;font-weight:700;color:#ffcc80;">'+prize+'</span>'
+    row.appendChild(winnersDiv)
+    log.insertBefore(row, log.firstChild)
+  }
+
   const sec=document.getElementById("prizeSection")
   if(sec){ sec.style.transition="background 0.2s"; sec.style.background="rgba(255,215,0,0.25)"; setTimeout(()=>{sec.style.background="rgba(67,160,71,0.07)"},700) }
   try {
@@ -441,6 +471,10 @@ socket.on("prizeClaimed", ({ticketNum,playerName,prize}) => {
     gain.gain.setValueAtTime(0.4,ctx.currentTime); gain.gain.exponentialRampToValueAtTime(0.001,ctx.currentTime+0.6)
     osc.start(ctx.currentTime); osc.stop(ctx.currentTime+0.6)
   } catch(e){}
+}
+
+socket.on("prizeClaimed", ({ticketNum,playerName,prize,prizeKey}) => {
+  addWinnerToLog(prize, prizeKey, playerName, ticketNum)
 })
 
 /* ── SHARE BOOKINGS WHATSAPP ── */
@@ -495,11 +529,20 @@ function shareBookingsPDF(){
 /* ── DOWNLOAD WINNERS ── */
 function downloadWinners(){
   if(winnersList.length===0){ alert("No winners yet"); return }
+  // Group by prizeKey
+  const grouped = {}
+  winnersList.forEach(w => {
+    if(!grouped[w.prizeKey]) grouped[w.prizeKey] = { prize: w.prize, winners: [] }
+    grouped[w.prizeKey].winners.push(w)
+  })
   let text = "🎱 TAMBOLA WINNERS\n" + "=".repeat(40) + "\n\n"
-  winnersList.forEach((w,i) => {
-    text += (i+1)+". "+w.prize+"\n"
-          + "   Player: "+w.playerName+"\n"
-          + "   Ticket: #"+w.ticketNum+" (Sheet "+(Math.floor((w.ticketNum-1)/6)+1)+")\n\n"
+  let i = 1
+  Object.values(grouped).forEach(g => {
+    text += i+". "+g.prize+"\n"
+    g.winners.forEach(w => {
+      text += "   • "+w.playerName+" — Ticket #"+w.ticketNum+" (Sheet "+(Math.floor((w.ticketNum-1)/6)+1)+")\n"
+    })
+    text += "\n"; i++
   })
   const blob = new Blob([text], {type:"text/plain"})
   const a    = document.createElement("a")
@@ -511,36 +554,38 @@ function downloadWinners(){
 /* ── SHARE WINNERS ── */
 function shareWinners(){
   if(winnersList.length===0){ alert("No winners yet"); return }
+  const grouped = {}
+  winnersList.forEach(w => {
+    if(!grouped[w.prizeKey]) grouped[w.prizeKey] = { prize: w.prize, winners: [] }
+    grouped[w.prizeKey].winners.push(w)
+  })
   let msg = "🎱 *Tambola Winners* 🎉\n\n"
-  winnersList.forEach((w,i) => {
-    msg += (i+1)+". "+w.prize+" — *"+w.playerName+"* (Ticket #"+w.ticketNum+")\n"
+  let i = 1
+  Object.values(grouped).forEach(g => {
+    msg += i+". "+g.prize+"\n"
+    g.winners.forEach(w => { msg += "   • *"+w.playerName+"* (Ticket #"+w.ticketNum+")\n" })
+    msg += "\n"; i++
   })
   window.open("https://wa.me/?text="+encodeURIComponent(msg),"_blank")
 }
 
 /* ── RESTORE WINNERS ON RELOAD ── */
 socket.on("existingClaims", (claims) => {
-  Object.entries(claims).forEach(([key, data]) => {
-    if(!data || !data.playerName) return
-    const prizeKeys = ["earlyFive","earlySeven","topLine","middleLine","bottomLine",
-      "corners","star","bullseye","leftEdge","rightEdge","firstAndLast",
-      "anyTwoLines","fullHouse","secondHouse","thirdHouse"]
-    if(!prizeKeys.includes(key)) return
+  const prizeKeys = ["earlyFive","earlySeven","topLine","middleLine","bottomLine",
+    "corners","star","bullseye","leftEdge","rightEdge","firstAndLast",
+    "anyTwoLines","fullHouse","secondHouse","thirdHouse"]
+
+  prizeKeys.forEach(key => {
+    const data = claims[key]
+    if(!data) return
     const prize = ALL_PRIZES.find(p => p.key === key)
     if(!prize) return
-    winnersList.push({ prize: prize.label, playerName: data.playerName, ticketNum: data.ticketNum })
-    const noEl = document.getElementById("noPrizes")
-    const log  = document.getElementById("prizeLog")
-    if(!log) return
-    if(noEl) noEl.style.display = "none"
-    const sheet = Math.floor((data.ticketNum-1)/6)+1
-    const row = document.createElement("div")
-    row.style.cssText = "display:flex;justify-content:space-between;align-items:center;padding:10px 14px;margin-bottom:8px;background:rgba(255,255,255,0.06);border-radius:10px;border:1px solid rgba(255,215,0,0.15);flex-wrap:wrap;gap:6px;"
-    row.innerHTML =
-      '<span style="font-size:15px;font-weight:700;color:#ffcc80;min-width:160px;">'+prize.label+'</span>'+
-      '<span style="font-size:14px;color:#a5d6a7;font-weight:600;">'+data.playerName+'</span>'+
-      '<span style="font-size:13px;color:rgba(255,255,255,0.5);">Ticket #'+data.ticketNum+' · Sheet '+sheet+'</span>'
-    log.appendChild(row)
+    // data can be an array (new format) or a single object (old format)
+    const winners = Array.isArray(data) ? data : [data]
+    winners.forEach(w => {
+      if(!w || !w.playerName) return
+      addWinnerToLog(prize.label, key, w.playerName, w.ticketNum)
+    })
   })
 })
 
