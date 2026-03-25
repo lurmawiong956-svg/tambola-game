@@ -35,11 +35,16 @@ function createBoard(){
   }
 }
 
+/* ── BUILD TICKET LIST ──
+   For booking/countdown screens: show full ticket grids with inline booking.
+   For game screen: show booked tickets list (unchanged).
+── */
 function buildTicketList(listId, infoId){
   const list = document.getElementById(listId)
   if(!list || !totalTickets) return
   list.innerHTML = ""
 
+  // ── GAME SCREEN: show all booked tickets as grids ──
   if(listId === "ticketList"){
     const bookedEntries = Object.entries(bookedTickets).sort((a,b) => parseInt(a[0]) - parseInt(b[0]))
     if(bookedEntries.length === 0){
@@ -78,23 +83,169 @@ function buildTicketList(listId, infoId){
     updateInfo(infoId); return
   }
 
+  // ── BOOKING / COUNTDOWN SCREENS: show ALL tickets as grids with booking UI ──
   const totalSheets = Math.ceil(totalTickets / 6)
   for(let s = 0; s < totalSheets; s++){
-    const block = document.createElement("div"); block.className = "sheetBlock"
-    const label = document.createElement("div"); label.className = "sheetLabel"
+    const block = document.createElement("div")
+    block.className = "sheetBlock"
+    block.style.cssText = "background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.1);border-radius:14px;padding:14px 12px;margin-bottom:16px;"
+    const label = document.createElement("div")
+    label.className = "sheetLabel"
     label.innerText = "Sheet "+(s+1)+"  —  Tickets "+(s*6+1)+" to "+Math.min(s*6+6, totalTickets)
     block.appendChild(label)
-    const row = document.createElement("div"); row.className = "sheetRow"
+
+    const grid = document.createElement("div")
+    grid.style.cssText = "display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:12px;"
+
     for(let t = 0; t < 6; t++){
       const num = s*6+t+1; if(num > totalTickets) break
-      const btn = document.createElement("div")
-      btn.id = "tbtn"+num; btn.innerText = num; btn.className = getTicketClass(num)
-      btn.onclick = () => ticketClicked(num)
-      row.appendChild(btn)
+      const ticket = ticketSheets[s] && ticketSheets[s][t]
+      if(!ticket) continue
+
+      const card = buildBookingTicketCard(num, ticket)
+      card.id = "bookcard"+num
+      grid.appendChild(card)
     }
-    block.appendChild(row); list.appendChild(block)
+    block.appendChild(grid)
+    list.appendChild(block)
   }
   updateInfo(infoId)
+}
+
+/* ── BUILD A SINGLE TICKET CARD FOR BOOKING SCREEN ── */
+function buildBookingTicketCard(num, ticket){
+  const isMyBooked   = myBookedTickets.includes(num)
+  const isMyHeld     = myHeldTickets.includes(num)
+  const isBooked     = !!bookedTickets[num]
+  const isOnHold     = !!onHoldTickets[num]
+
+  const card = document.createElement("div")
+  card.style.cssText = "background:white;border-radius:12px;overflow:hidden;box-shadow:0 4px 16px rgba(0,0,0,0.3);"
+
+  // Header
+  let hdrBg = "linear-gradient(135deg,#1976d2,#0d47a1)"
+  let hdrText = ""
+  if(isMyBooked){
+    hdrBg = "linear-gradient(135deg,#00acc1,#006064)"
+    hdrText = '<span style="color:#ffeb3b;font-size:12px;font-weight:700;">✅ '+bookedTickets[num]+'</span>'
+  } else if(isBooked){
+    hdrBg = "linear-gradient(135deg,#424242,#212121)"
+    hdrText = '<span style="color:#ef9a9a;font-size:12px;font-weight:700;">🔒 BOOKED</span>'
+  } else if(isMyHeld){
+    hdrBg = "linear-gradient(135deg,#f57f17,#e65100)"
+    hdrText = '<span style="color:#fff3e0;font-size:12px;font-weight:700;">⏳ Awaiting...</span>'
+  } else if(isOnHold){
+    hdrBg = "linear-gradient(135deg,#bf360c,#870000)"
+    hdrText = '<span style="color:#ffccbc;font-size:12px;font-weight:700;">⏳ On Hold</span>'
+  } else {
+    hdrText = '<span style="color:#a5d6a7;font-size:12px;font-weight:700;">Available</span>'
+  }
+
+  const hdr = document.createElement("div")
+  hdr.style.cssText = "display:flex;justify-content:space-between;align-items:center;padding:8px 12px;background:"+hdrBg+";"
+  hdr.innerHTML = '<span style="color:white;font-weight:700;font-size:13px;">🎟 Ticket #'+num+'</span>'+hdrText
+  card.appendChild(hdr)
+
+  // Ticket grid
+  const gridWrap = document.createElement("div")
+  gridWrap.style.cssText = "padding:10px 10px 6px;"
+  const ticketGrid = document.createElement("div")
+  ticketGrid.style.cssText = "display:grid;grid-template-columns:repeat(9,1fr);gap:3px;"
+  for(let r = 0; r < 3; r++){
+    for(let c = 0; c < 9; c++){
+      const cell = document.createElement("div")
+      const val  = ticket[r][c]
+      if(val !== 0){
+        cell.style.cssText = "height:36px;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:12px;border-radius:5px;border:1px solid #e0e0e0;background:#f8f9fa;color:#1a1a2e;"
+        cell.innerText = val
+        cell.id = "bcell_"+num+"_"+val
+      } else {
+        cell.style.cssText = "height:36px;border-radius:5px;background:#e9ecef;border:1px solid #dee2e6;"
+      }
+      ticketGrid.appendChild(cell)
+    }
+  }
+  gridWrap.appendChild(ticketGrid)
+  card.appendChild(gridWrap)
+
+  // Booking footer — only for available tickets
+  if(!isBooked && !isOnHold && !isMyHeld && !isMyBooked){
+    const footer = document.createElement("div")
+    footer.id = "bookfooter"+num
+    footer.style.cssText = "padding:8px 10px 10px;display:flex;gap:6px;align-items:center;background:#f5f5f5;border-top:1px solid #eee;"
+    const inp = document.createElement("input")
+    inp.type = "text"; inp.placeholder = "Your name"
+    inp.id = "bookinput"+num
+    inp.style.cssText = "flex:1;padding:7px 10px;font-size:12px;border:1px solid #ccc;border-radius:8px;outline:none;font-family:'Poppins',sans-serif;color:#333;background:white;"
+    inp.addEventListener("keydown", e => { if(e.key==="Enter") bookSingleTicket(num) })
+    const btn = document.createElement("button")
+    btn.innerText = "Book"
+    btn.style.cssText = "padding:7px 14px;font-size:12px;font-weight:700;background:linear-gradient(135deg,#43a047,#2e7d32);color:white;border:none;border-radius:8px;cursor:pointer;white-space:nowrap;font-family:'Poppins',sans-serif;"
+    btn.onclick = () => bookSingleTicket(num)
+    footer.appendChild(inp)
+    footer.appendChild(btn)
+    card.appendChild(footer)
+  } else if(isBooked && !isMyBooked){
+    const footer = document.createElement("div")
+    footer.style.cssText = "padding:8px 12px;text-align:center;background:#f5f5f5;border-top:1px solid #eee;"
+    footer.innerHTML = '<span style="font-size:12px;color:#757575;font-weight:600;">Booked by '+bookedTickets[num]+'</span>'
+    card.appendChild(footer)
+  } else if(isOnHold){
+    const footer = document.createElement("div")
+    footer.style.cssText = "padding:8px 12px;text-align:center;background:#fff3e0;border-top:1px solid #ffe0b2;"
+    footer.innerHTML = '<span style="font-size:12px;color:#e65100;font-weight:600;">On hold by '+onHoldTickets[num]+'</span>'
+    card.appendChild(footer)
+  } else if(isMyHeld){
+    const footer = document.createElement("div")
+    footer.style.cssText = "padding:8px 12px;text-align:center;background:#fff8e1;border-top:1px solid #ffecb3;"
+    footer.innerHTML = '<span style="font-size:12px;color:#f57f17;font-weight:600;">⏳ Pending confirmation...</span>'
+    card.appendChild(footer)
+  } else if(isMyBooked){
+    const footer = document.createElement("div")
+    footer.style.cssText = "padding:8px 12px;text-align:center;background:#e8f5e9;border-top:1px solid #c8e6c9;"
+    footer.innerHTML = '<span style="font-size:12px;color:#2e7d32;font-weight:700;">✅ Booked: '+bookedTickets[num]+'</span>'
+    card.appendChild(footer)
+  }
+
+  return card
+}
+
+/* ── BOOK A SINGLE TICKET DIRECTLY FROM GRID ── */
+function bookSingleTicket(num){
+  const inp = document.getElementById("bookinput"+num)
+  if(!inp) return
+  const name = inp.value.trim()
+  if(!name){ inp.focus(); inp.style.borderColor = "#e53935"; setTimeout(()=>inp.style.borderColor="#ccc",1500); return }
+  if(bookedTickets[num]){ showToast("❌ Ticket #"+num+" just got booked!"); refreshBookingCard(num); return }
+  if(onHoldTickets[num]){ showToast("⏳ Ticket #"+num+" is on hold"); refreshBookingCard(num); return }
+
+  socket.emit("requestHold", { tickets: [num], playerName: name })
+  showToast("📨 Request sent for Ticket #"+num+"!")
+
+  const sheet = Math.floor((num-1)/6)+1
+  const msg = "🎱 *Tambola Booking Request*\n\n👤 *Name:* "+name+"\n🎟 *Tickets:*\nTicket #"+num+" (Sheet "+sheet+")\n\nPlease confirm! 🙏"
+  setTimeout(() => window.open("https://wa.me/918731873667?text="+encodeURIComponent(msg),"_blank"), 300)
+}
+
+/* ── REFRESH A SINGLE BOOKING CARD ── */
+function refreshBookingCard(num){
+  const oldCard = document.getElementById("bookcard"+num)
+  if(!oldCard || !ticketSheets.length) return
+  const sheetIdx = Math.floor((num-1)/6)
+  const ticketIdx = (num-1) % 6
+  const ticket = ticketSheets[sheetIdx] && ticketSheets[sheetIdx][ticketIdx]
+  if(!ticket) return
+  const newCard = buildBookingTicketCard(num, ticket)
+  newCard.id = "bookcard"+num
+  oldCard.replaceWith(newCard)
+}
+
+/* ── REFRESH ALL BOOKING CARDS ── */
+function refreshAllBookingCards(){
+  if(currentScreen !== "bookingScreen" && currentScreen !== "countdownScreen") return
+  for(let i = 1; i <= totalTickets; i++){
+    refreshBookingCard(i)
+  }
 }
 
 function getTicketClass(num){
@@ -123,8 +274,7 @@ function updateInfo(infoId){
   el.innerHTML =
     '<span style="color:#a5d6a7">'+available+' available</span> &nbsp;|&nbsp; '+
     '<span style="color:#ffcc80">'+onHold+' on hold</span> &nbsp;|&nbsp; '+
-    '<span style="color:#ef9a9a">'+booked+' booked</span>'+
-    (selectedTickets.length > 0 ? ' &nbsp;|&nbsp; <span style="color:#80deea">'+selectedTickets.length+' selected</span>' : '')
+    '<span style="color:#ef9a9a">'+booked+' booked</span>'
 }
 
 function updateAllInfo(){
@@ -132,6 +282,7 @@ function updateAllInfo(){
 }
 
 function updateSelectionPanel(){
+  // Not used for booking-screen grid mode, kept for game screen compatibility
   const text = selectedTickets.length === 0 ? "" :
     selectedTickets.length === 1 ? "Ticket #"+selectedTickets[0]+" selected"
     : selectedTickets.length+" tickets: #"+selectedTickets.join(", #")
@@ -192,8 +343,6 @@ function previewTicket(num){
 }
 
 function getMyName(){
-  const ids = ["playerName","playerNamePre","playerNameCd"]
-  for(const id of ids){ const el = document.getElementById(id); if(el && el.value.trim()) return el.value.trim() }
   if(myBookedTickets.length) return bookedTickets[myBookedTickets[0]] || ""
   if(myHeldTickets.length)   return onHoldTickets[myHeldTickets[0]] || ""
   return ""
@@ -334,23 +483,51 @@ function clearSearch(){
   document.querySelectorAll('[id^="allcard"]').forEach(card => { card.style.display = ""; card.style.boxShadow = "" })
 }
 
+/* ── WINNERS LIST (multiple winners per prize) ── */
 let playerWinnersStore = []
 
-function addToWinnersList(prize, playerName, ticketNum){
+function addToWinnersList(prize, prizeKey, playerName, ticketNum){
   ticketNum = parseInt(ticketNum)
-  if(playerWinnersStore.find(w => w.prize===prize && w.ticketNum===ticketNum)) return
-  playerWinnersStore.push({ prize, playerName, ticketNum })
+  // Prevent duplicate entry for same ticket + prize
+  if(playerWinnersStore.find(w => w.prizeKey === prizeKey && w.ticketNum === ticketNum)) return
+  playerWinnersStore.push({ prize, prizeKey, playerName, ticketNum })
+
   const sheet = Math.floor((ticketNum-1)/6)+1
   ;["winnersSection","winnersSectionCd"].forEach(secId => { const s = document.getElementById(secId); if(s) s.style.display = "block" })
+
   ;["playerWinnersList","playerWinnersListCd"].forEach(listId => {
     const list = document.getElementById(listId); if(!list) return
-    const row = document.createElement("div")
-    row.style.cssText = "display:flex;justify-content:space-between;align-items:center;padding:10px 12px;margin-bottom:8px;background:rgba(255,255,255,0.06);border-radius:10px;border:1px solid rgba(255,215,0,0.15);flex-wrap:wrap;gap:8px;"
-    row.innerHTML = '<span style="font-size:14px;font-weight:700;color:#ffcc80;min-width:140px;">'+prize+'</span>'
-      +'<span style="font-size:14px;color:#a5d6a7;font-weight:600;">'+playerName+'</span>'
-      +'<span style="font-size:12px;color:rgba(255,255,255,0.5);">#'+ticketNum+' · Sheet '+sheet+'</span>'
-      +'<button onclick="viewWinnerTicket('+ticketNum+')" style="font-size:11px;padding:4px 10px;background:rgba(255,255,255,0.12);border:1px solid rgba(255,255,255,0.2);color:#fff;border-radius:6px;cursor:pointer;">👁 View</button>'
-    list.insertBefore(row, list.firstChild)
+    // Check if a group for this prize already exists
+    const groupId = "wgroup_"+listId+"_"+prizeKey
+    const existing = document.getElementById(groupId)
+    if(existing){
+      // Append winner badge to existing group
+      const winnersDiv = existing.querySelector(".winners-badges")
+      if(winnersDiv){
+        const badge = document.createElement("span")
+        badge.style.cssText = "display:inline-flex;align-items:center;gap:5px;padding:3px 10px;background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.15);border-radius:16px;font-size:12px;"
+        badge.innerHTML = '<span style="color:#a5d6a7;font-weight:600;">'+playerName+'</span>'
+          +'<span style="color:rgba(255,255,255,0.4);font-size:10px;">#'+ticketNum+'·Sh'+sheet+'</span>'
+          +'<button onclick="viewWinnerTicket('+ticketNum+')" style="font-size:10px;padding:2px 6px;background:rgba(255,255,255,0.12);border:1px solid rgba(255,255,255,0.2);color:#fff;border-radius:4px;cursor:pointer;margin-left:2px;">👁</button>'
+        winnersDiv.appendChild(badge)
+      }
+    } else {
+      const row = document.createElement("div")
+      row.id = groupId
+      row.style.cssText = "padding:10px 12px;margin-bottom:8px;background:rgba(255,255,255,0.06);border-radius:10px;border:1px solid rgba(255,215,0,0.15);"
+      const winnersDiv = document.createElement("div")
+      winnersDiv.className = "winners-badges"
+      winnersDiv.style.cssText = "display:flex;flex-wrap:wrap;gap:6px;margin-top:6px;"
+      const badge = document.createElement("span")
+      badge.style.cssText = "display:inline-flex;align-items:center;gap:5px;padding:3px 10px;background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.15);border-radius:16px;font-size:12px;"
+      badge.innerHTML = '<span style="color:#a5d6a7;font-weight:600;">'+playerName+'</span>'
+        +'<span style="color:rgba(255,255,255,0.4);font-size:10px;">#'+ticketNum+'·Sh'+sheet+'</span>'
+        +'<button onclick="viewWinnerTicket('+ticketNum+')" style="font-size:10px;padding:2px 6px;background:rgba(255,255,255,0.12);border:1px solid rgba(255,255,255,0.2);color:#fff;border-radius:4px;cursor:pointer;margin-left:2px;">👁</button>'
+      winnersDiv.appendChild(badge)
+      row.innerHTML = '<span style="font-size:13px;font-weight:700;color:#ffcc80;">'+prize+'</span>'
+      row.appendChild(winnersDiv)
+      list.insertBefore(row, list.firstChild)
+    }
   })
 }
 
@@ -423,20 +600,21 @@ socket.on("gameCountdown", ({ startTime: st, activePrizes }) => {
   activePrizeKeys = activePrizes && activePrizes.length > 0 ? activePrizes : null
   if(currentScreen === "gameScreen") return
   showScreen("countdownScreen"); buildTicketList("ticketListCd","ticketInfoCd")
-  refreshTicketButtons(); updateSelectionPanel(); showMyTickets(); startCountdown(st)
+  refreshAllBookingCards(); updateSelectionPanel(); showMyTickets(); startCountdown(st)
 })
 
 socket.on("ticketsOnHold", (heldList) => {
   heldList.forEach(({ ticketNum, playerName }) => {
     onHoldTickets[ticketNum] = playerName
-    if(selectedTickets.includes(ticketNum) && !myHeldTickets.includes(ticketNum)) myHeldTickets.push(ticketNum)
+    if(!myHeldTickets.includes(ticketNum)) myHeldTickets.push(ticketNum)
+    refreshBookingCard(ticketNum)
   })
-  refreshTicketButtons(); updateAllInfo(); showMyTickets()
+  updateAllInfo(); showMyTickets()
 })
 
 socket.on("holdFailed", (failedList) => {
   failedList.forEach(({ ticketNum }) => { selectedTickets = selectedTickets.filter(t=>t!==ticketNum) })
-  refreshTicketButtons(); updateSelectionPanel(); updateAllInfo()
+  refreshAllBookingCards(); updateSelectionPanel(); updateAllInfo()
 })
 
 socket.on("ticketBooked", ({ ticketNum, playerName }) => {
@@ -449,7 +627,8 @@ socket.on("ticketBooked", ({ ticketNum, playerName }) => {
     myBookedTickets.push(ticketNum)
     showToast("✅ Ticket #"+ticketNum+" confirmed for "+playerName+"!")
   }
-  refreshTicketButtons(); updateAllInfo()
+  refreshBookingCard(ticketNum)
+  updateAllInfo()
   if(previewTicketNum===ticketNum) previewTicket(ticketNum)
   showMyTickets()
   if(currentScreen === "gameScreen") buildTicketList("ticketList","ticketInfo")
@@ -457,22 +636,24 @@ socket.on("ticketBooked", ({ ticketNum, playerName }) => {
 
 socket.on("holdRemoved", (ticketNum) => {
   delete onHoldTickets[ticketNum]
-  refreshTicketButtons(); updateAllInfo()
+  refreshBookingCard(ticketNum)
+  updateAllInfo()
   if(previewTicketNum===ticketNum) previewTicket(ticketNum)
   showMyTickets()
 })
 
 socket.on("yourHoldReleased", (ticketNum) => {
   myHeldTickets = myHeldTickets.filter(t=>t!==ticketNum)
+  refreshBookingCard(ticketNum)
   showToast("⚠️ Admin released your hold on Ticket #"+ticketNum+".")
   showMyTickets()
 })
 
-/* ── BOOKING RELEASED BY ADMIN ── */
 socket.on("bookingReleased", ({ ticketNum, playerName }) => {
   delete bookedTickets[ticketNum]
   myBookedTickets = myBookedTickets.filter(t => t !== ticketNum)
-  refreshTicketButtons(); updateAllInfo()
+  refreshBookingCard(ticketNum)
+  updateAllInfo()
   if(previewTicketNum === ticketNum) previewTicket(ticketNum)
   showMyTickets()
   if(currentScreen === "gameScreen") buildTicketList("ticketList","ticketInfo")
@@ -615,9 +796,14 @@ socket.on("existingClaims", (claims) => {
     "corners","star","bullseye","leftEdge","rightEdge","firstAndLast",
     "anyTwoLines","fullHouse","secondHouse","thirdHouse"]
   prizeKeys.forEach(key => {
-    const data = claims[key]; if(!data || !data.playerName) return
+    const data = claims[key]; if(!data) return
     const prize = PRIZES.find(p => p.key === key); if(!prize) return
-    addToWinnersList(prize.label, data.playerName, data.ticketNum)
+    // Support both old (single object) and new (array) formats
+    const winners = Array.isArray(data) ? data : [data]
+    winners.forEach(w => {
+      if(!w || !w.playerName) return
+      addToWinnersList(prize.label, key, w.playerName, w.ticketNum)
+    })
   })
 })
 
@@ -641,8 +827,8 @@ function showGameOverBanner(){
 
 socket.on("prizeClaimed", ({ ticketNum, playerName, prize, prizeKey }) => {
   ticketNum = parseInt(ticketNum)
-  if(prizeKey) globalClaimed[prizeKey] = { playerName, ticketNum }
-  addToWinnersList(prize, playerName, ticketNum)
+  if(prizeKey) globalClaimed[prizeKey] = true
+  addToWinnersList(prize, prizeKey, playerName, ticketNum)
   if(myBookedTickets.includes(ticketNum)){
     const prizeObj = PRIZES.find(p => p.label === prize)
     showWinBanner(prize, prizeObj ? prizeObj.desc : "", ticketNum, playerName)
