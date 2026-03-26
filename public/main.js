@@ -96,7 +96,7 @@ function buildTicketList(listId, infoId){
     block.appendChild(label)
 
     const grid = document.createElement("div")
-    grid.style.cssText = "display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:12px;"
+    grid.style.cssText = "display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:9px;"
 
     for(let t = 0; t < 6; t++){
       const num = s*6+t+1; if(num > totalTickets) break
@@ -118,33 +118,15 @@ function ensureFloatingBookBar(){
   if(document.getElementById("floatingBookBar")) return
   const bar = document.createElement("div")
   bar.id = "floatingBookBar"
-  bar.style.cssText = [
-    "position:fixed;bottom:0;left:0;right:0;z-index:9000;",
-    "background:linear-gradient(135deg,#1a237e,#283593);",
-    "border-top:2px solid rgba(255,204,128,0.5);",
-    "padding:12px 16px;display:none;",
-    "box-shadow:0 -4px 24px rgba(0,0,0,0.5);",
-    "flex-direction:column;gap:10px;"
-  ].join("")
+  // styles in CSS #floatingBookBar
   bar.innerHTML = `
-    <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;justify-content:center;">
-      <span id="fbbCount" style="font-size:13px;font-weight:700;color:#ffcc80;min-width:120px;text-align:center;"></span>
-      <input id="fbbName" type="text" placeholder="Enter your name"
-        style="flex:1;min-width:160px;max-width:260px;padding:9px 14px;font-size:14px;border-radius:10px;
-               border:1.5px solid rgba(255,255,255,0.3);background:rgba(255,255,255,0.12);color:#fff;
-               outline:none;font-family:'Poppins',sans-serif;">
-      <button id="fbbBook" onclick="bookAllGridSelected()"
-        style="padding:9px 22px;font-size:14px;font-weight:700;background:linear-gradient(135deg,#43a047,#2e7d32);
-               color:white;border:none;border-radius:10px;cursor:pointer;white-space:nowrap;font-family:'Poppins',sans-serif;">
-        ✅ Book
-      </button>
-      <button onclick="clearGridSelection()"
-        style="padding:9px 14px;font-size:13px;background:rgba(255,255,255,0.1);color:rgba(255,255,255,0.7);
-               border:1px solid rgba(255,255,255,0.2);border-radius:10px;cursor:pointer;font-family:'Poppins',sans-serif;">
-        ✖ Clear
-      </button>
+    <div class="fbb-row">
+      <span id="fbbCount"></span>
+      <input id="fbbName" type="text" placeholder="Your name…">
+      <button id="fbbBook" onclick="bookAllGridSelected()">✅ Book</button>
+      <button id="fbbClear" onclick="clearGridSelection()">✖</button>
     </div>
-    <div id="fbbTicketList" style="font-size:12px;color:rgba(255,255,255,0.6);text-align:center;"></div>
+    <div id="fbbTicketList"></div>
   `
   document.body.appendChild(bar)
 
@@ -182,14 +164,13 @@ function toggleGridSelect(num){
   const card = document.getElementById("bookcard"+num)
   if(card){
     const isSelected = gridSelectedTickets.includes(num)
-    card.style.outline = isSelected ? "3px solid #43a047" : "none"
-    card.style.boxShadow = isSelected ? "0 0 0 3px rgba(67,160,71,0.4), 0 4px 16px rgba(0,0,0,0.3)" : "0 4px 16px rgba(0,0,0,0.3)"
+    if(isSelected) card.classList.add("selected"); else card.classList.remove("selected")
     const footer = document.getElementById("bookfooter"+num)
     if(footer){
-      footer.style.background = isSelected ? "#e8f5e9" : "#f5f5f5"
+      footer.style.background = isSelected ? "#c8e6c9" : "#f0e6c8"
+      footer.style.color = isSelected ? "#1b5e20" : "#888"
       const label = footer.querySelector(".select-label")
-      if(label) label.innerText = isSelected ? "✓ Selected" : "Tap to select"
-      label.style.color = isSelected ? "#2e7d32" : "#888"
+      if(label){ label.innerText = isSelected ? "✓ Selected" : "Tap to select" }
     }
   }
   updateFloatingBar()
@@ -201,13 +182,13 @@ function clearGridSelection(){
   prev.forEach(num => {
     const card = document.getElementById("bookcard"+num)
     if(card){
-      card.style.outline = "none"
-      card.style.boxShadow = "0 4px 16px rgba(0,0,0,0.3)"
+      card.classList.remove("selected")
       const footer = document.getElementById("bookfooter"+num)
       if(footer){
-        footer.style.background = "#f5f5f5"
+        footer.style.background = "#f0e6c8"
+        footer.style.color = "#888"
         const label = footer.querySelector(".select-label")
-        if(label){ label.innerText = "Tap to select"; label.style.color = "#888" }
+        if(label){ label.innerText = "Tap to select" }
       }
     }
   })
@@ -232,7 +213,7 @@ function bookAllGridSelected(){
     gridSelectedTickets = gridSelectedTickets.filter(t => !bookedTickets[t] && !onHoldTickets[t])
     conflict.forEach(num => {
       const card = document.getElementById("bookcard"+num)
-      if(card){ card.style.outline="none"; card.style.boxShadow="0 4px 16px rgba(0,0,0,0.3)" }
+      if(card){ card.classList.remove("selected") }
     })
     updateFloatingBar()
     if(gridSelectedTickets.length === 0) return
@@ -261,7 +242,7 @@ function buildBookingTicketCard(num, ticket){
 
   const card = document.createElement("div")
   card.style.cssText = [
-    "background:white;border-radius:12px;overflow:hidden;",
+    "",
     "box-shadow:"+(isSelected ? "0 0 0 3px rgba(67,160,71,0.4), 0 4px 16px rgba(0,0,0,0.3)" : "0 4px 16px rgba(0,0,0,0.3)")+";",
     "outline:"+(isSelected ? "3px solid #43a047" : "none")+";",
     isAvail ? "cursor:pointer;" : ""
@@ -401,9 +382,9 @@ function updateInfo(infoId){
   const onHold = Object.keys(onHoldTickets).length
   const available = totalTickets - booked - onHold
   el.innerHTML =
-    '<span style="color:#a5d6a7">'+available+' available</span> &nbsp;|&nbsp; '+
-    '<span style="color:#ffcc80">'+onHold+' on hold</span> &nbsp;|&nbsp; '+
-    '<span style="color:#ef9a9a">'+booked+' booked</span>'
+    '<span class="info-pill avail">'+available+' available</span>'+
+    '<span class="info-pill held">'+onHold+' on hold</span>'+
+    '<span class="info-pill booked">'+booked+' booked</span>'
 }
 
 function updateAllInfo(){
@@ -623,38 +604,21 @@ function addToWinnersList(prize, prizeKey, playerName, ticketNum){
 
   const sheet = Math.floor((ticketNum-1)/6)+1
   ;["winnersSection","winnersSectionCd"].forEach(secId => { const s = document.getElementById(secId); if(s) s.style.display = "block" })
+  ;["winnersSection","winnersSectionCd"].forEach(secId => { const s = document.getElementById(secId); if(s) s.className = "winners-section" })
 
   ;["playerWinnersList","playerWinnersListCd"].forEach(listId => {
     const list = document.getElementById(listId); if(!list) return
-    // Check if a group for this prize already exists
     const groupId = "wgroup_"+listId+"_"+prizeKey
     const existing = document.getElementById(groupId)
+    const badgeHtml = '<span class="winner-badge"><span class="wname">'+playerName+'</span><span class="wticket">#'+ticketNum+'·Sh'+sheet+'</span><button onclick="viewWinnerTicket('+ticketNum+')" style="font-size:9px;padding:1px 5px;background:rgba(255,255,255,0.1);border:1px solid rgba(255,255,255,0.2);color:#fff;border-radius:3px;cursor:pointer;margin-left:2px;margin:0;box-shadow:none;">👁</button></span>'
     if(existing){
-      // Append winner badge to existing group
-      const winnersDiv = existing.querySelector(".winners-badges")
-      if(winnersDiv){
-        const badge = document.createElement("span")
-        badge.style.cssText = "display:inline-flex;align-items:center;gap:5px;padding:3px 10px;background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.15);border-radius:16px;font-size:12px;"
-        badge.innerHTML = '<span style="color:#a5d6a7;font-weight:600;">'+playerName+'</span>'
-          +'<span style="color:rgba(255,255,255,0.4);font-size:10px;">#'+ticketNum+'·Sh'+sheet+'</span>'
-          +'<button onclick="viewWinnerTicket('+ticketNum+')" style="font-size:10px;padding:2px 6px;background:rgba(255,255,255,0.12);border:1px solid rgba(255,255,255,0.2);color:#fff;border-radius:4px;cursor:pointer;margin-left:2px;">👁</button>'
-        winnersDiv.appendChild(badge)
-      }
+      const wb = existing.querySelector(".winner-badges")
+      if(wb) wb.insertAdjacentHTML("beforeend", badgeHtml)
     } else {
       const row = document.createElement("div")
       row.id = groupId
-      row.style.cssText = "padding:10px 12px;margin-bottom:8px;background:rgba(255,255,255,0.06);border-radius:10px;border:1px solid rgba(255,215,0,0.15);"
-      const winnersDiv = document.createElement("div")
-      winnersDiv.className = "winners-badges"
-      winnersDiv.style.cssText = "display:flex;flex-wrap:wrap;gap:6px;margin-top:6px;"
-      const badge = document.createElement("span")
-      badge.style.cssText = "display:inline-flex;align-items:center;gap:5px;padding:3px 10px;background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.15);border-radius:16px;font-size:12px;"
-      badge.innerHTML = '<span style="color:#a5d6a7;font-weight:600;">'+playerName+'</span>'
-        +'<span style="color:rgba(255,255,255,0.4);font-size:10px;">#'+ticketNum+'·Sh'+sheet+'</span>'
-        +'<button onclick="viewWinnerTicket('+ticketNum+')" style="font-size:10px;padding:2px 6px;background:rgba(255,255,255,0.12);border:1px solid rgba(255,255,255,0.2);color:#fff;border-radius:4px;cursor:pointer;margin-left:2px;">👁</button>'
-      winnersDiv.appendChild(badge)
-      row.innerHTML = '<span style="font-size:13px;font-weight:700;color:#ffcc80;">'+prize+'</span>'
-      row.appendChild(winnersDiv)
+      row.className = "prize-group"
+      row.innerHTML = '<div class="prize-group-label">'+prize+'</div><div class="winner-badges">'+badgeHtml+'</div>'
       list.insertBefore(row, list.firstChild)
     }
   })
