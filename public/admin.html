@@ -2,6 +2,7 @@
 <html>
 <head>
   <title>Tambola Admin</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <link rel="stylesheet" href="style.css">
   <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
   <style>
@@ -74,7 +75,6 @@
         </div>
       </div>
 
-      <!-- Prize selection -->
       <div style="background:rgba(255,215,0,0.07);border:1px solid rgba(255,215,0,0.2);border-radius:14px;padding:16px 20px;max-width:600px;margin:16px auto;text-align:left;">
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;">
           <span style="font-size:15px;font-weight:700;color:#ffcc80;">🏆 Select Active Prizes</span>
@@ -140,7 +140,7 @@
       <div id="gamePrizeToggles" style="display:grid;grid-template-columns:1fr 1fr;gap:8px;"></div>
     </div>
 
-    <!-- Winners List (single unified section) -->
+    <!-- Winners List -->
     <div id="prizeSection" style="background:rgba(67,160,71,0.07);border:1px solid rgba(67,160,71,0.25);border-radius:16px;padding:16px 20px;max-width:600px;margin:16px auto;">
       <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:12px;">
         <h2 style="margin:0;">🎊 Winners List</h2>
