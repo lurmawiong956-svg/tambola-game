@@ -2,6 +2,7 @@
 <html>
 <head>
   <title>Tambola</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <link rel="stylesheet" href="style.css">
   <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
 </head>
@@ -85,13 +86,11 @@
       </button>
     </div>
 
-    <!-- Called Numbers — right below current number -->
     <h2>Called Numbers</h2>
     <div class="board" id="board"></div>
 
     <hr>
 
-    <!-- My Booked Tickets — always visible, scrollable -->
     <div id="myTicketsSection">
       <h2>My Booked Tickets</h2>
       <div id="myTicketsList" style="max-height:300px;overflow-y:auto;padding-right:4px;"></div>
@@ -101,7 +100,6 @@
 
     <hr>
 
-    <!-- Search by Name -->
     <div id="searchSection">
       <h2>🔍 Search by Name</h2>
       <div class="searchRow">
@@ -113,7 +111,6 @@
 
     <hr>
 
-    <!-- All Tickets List (scrollable) -->
     <div style="max-width:600px;margin:0 auto;">
       <h2>📋 All Tickets</h2>
       <p id="ticketInfo"></p>
@@ -122,7 +119,6 @@
 
     <hr>
 
-    <!-- Winners List -->
     <div id="winnersSection" style="display:none;background:rgba(255,215,0,0.07);border:1px solid rgba(255,215,0,0.25);border-radius:16px;padding:16px 20px;max-width:600px;margin:16px auto;">
       <h2>🏆 Prize Winners</h2>
       <div id="playerWinnersList"></div>
