@@ -144,7 +144,13 @@ const PRIZE_DEFS = [
   { key:"thirdHouse",   label:"🏅 Third Full House",   check:(t,m)=>t.every(r=>r.filter(n=>n>0).every(n=>m.includes(n)))}
 ]
 
-/* ── PRIZE CHECK ── */
+/* ── PRIZE CHECK ──
+   Rule: For each prize, collect ALL tickets that qualify RIGHT NOW in one pass.
+   If the prize has never been claimed before, award all simultaneous winners at once,
+   then permanently lock the prize — no further claims ever.
+   globalClaimed[prizeKey] = array of { playerName, ticketNum } (locked after first award).
+   globalClaimed[ticketNum+"_"+prizeKey] = guard so a ticket isn't re-processed.
+── */
 function checkPrizes(){
   const marked = gameState.calledNumbers
   const booked = gameState.bookedTickets
@@ -157,64 +163,85 @@ function checkPrizes(){
   const doSecond     = prizes.some(p => p.key === "secondHouse")
   const doThird      = prizes.some(p => p.key === "thirdHouse")
 
-  Object.entries(booked).forEach(([tNum, playerName]) => {
-    const ticketNum = parseInt(tNum)
-    const ticket    = sheets[Math.floor((ticketNum-1)/6)] && sheets[Math.floor((ticketNum-1)/6)][(ticketNum-1)%6]
-    if(!ticket) return
-    normalPrizes.forEach(prize => {
-      if(gameState.globalClaimed[prize.key]) return
-      const claimKey = ticketNum+"_"+prize.key
-      if(gameState.globalClaimed[claimKey]) return
-      if(prize.check(ticket, marked)){
-        gameState.globalClaimed[prize.key]  = { playerName, ticketNum }
-        gameState.globalClaimed[claimKey]   = { playerName, ticketNum }
-        saveState()
-        io.emit("prizeClaimed", { ticketNum, playerName, prize: prize.label, prizeKey: prize.key })
-      }
+  // ── Normal prizes ──
+  normalPrizes.forEach(prize => {
+    // Prize already claimed — permanently locked, skip entirely
+    if(gameState.globalClaimed[prize.key]) return
+
+    // Collect all tickets that qualify right now in one pass
+    const simultaneous = []
+    Object.entries(booked).forEach(([tNum, playerName]) => {
+      const ticketNum = parseInt(tNum)
+      if(gameState.globalClaimed[ticketNum+"_"+prize.key]) return  // this ticket already processed
+      const ticket = sheets[Math.floor((ticketNum-1)/6)] && sheets[Math.floor((ticketNum-1)/6)][(ticketNum-1)%6]
+      if(!ticket) return
+      if(prize.check(ticket, marked)) simultaneous.push({ ticketNum, playerName, tNum })
     })
+
+    if(simultaneous.length === 0) return
+
+    // Award all simultaneous winners, then lock the prize
+    gameState.globalClaimed[prize.key] = []
+    simultaneous.forEach(({ ticketNum, playerName, tNum }) => {
+      gameState.globalClaimed[tNum+"_"+prize.key] = { playerName, ticketNum }
+      gameState.globalClaimed[prize.key].push({ playerName, ticketNum })
+      io.emit("prizeClaimed", { ticketNum, playerName, prize: prize.label, prizeKey: prize.key })
+    })
+    saveState()
   })
 
+  // ── Full House prizes (sequential: 1st, 2nd, 3rd) ──
   if(doFullHouse || doSecond || doThird){
     const fullHouseCheck = PRIZE_DEFS.find(p => p.key === "fullHouse").check
-    const newWinners = []
+
+    // Collect all tickets that qualify and haven't been processed for any house prize
+    const qualifying = []
     Object.entries(booked).forEach(([tNum, playerName]) => {
       if(gameState.globalClaimed[tNum+"_fullHouse"])   return
       if(gameState.globalClaimed[tNum+"_secondHouse"]) return
       if(gameState.globalClaimed[tNum+"_thirdHouse"])  return
       const ticketNum = parseInt(tNum)
-      const ticket    = sheets[Math.floor((ticketNum-1)/6)] && sheets[Math.floor((ticketNum-1)/6)][(ticketNum-1)%6]
+      const ticket = sheets[Math.floor((ticketNum-1)/6)] && sheets[Math.floor((ticketNum-1)/6)][(ticketNum-1)%6]
       if(!ticket) return
-      if(fullHouseCheck(ticket, marked)) newWinners.push({ ticketNum, playerName, tNum })
+      if(fullHouseCheck(ticket, marked)) qualifying.push({ ticketNum, playerName, tNum })
     })
-    newWinners.forEach(({ ticketNum, playerName, tNum }) => {
-      const has1st = !!gameState.globalClaimed["fullHouse"]
-      const has2nd = !!gameState.globalClaimed["secondHouse"]
-      const has3rd = !!gameState.globalClaimed["thirdHouse"]
-      if(doFullHouse && !has1st){
-        gameState.globalClaimed["fullHouse"]       = { playerName, ticketNum }
-        gameState.globalClaimed[tNum+"_fullHouse"] = { playerName, ticketNum }
+
+    if(qualifying.length > 0){
+      // Award 1st house to ALL simultaneous qualifiers if not yet claimed
+      if(doFullHouse && !gameState.globalClaimed["fullHouse"]){
+        gameState.globalClaimed["fullHouse"] = []
+        qualifying.forEach(({ ticketNum, playerName, tNum }) => {
+          gameState.globalClaimed[tNum+"_fullHouse"] = { playerName, ticketNum }
+          gameState.globalClaimed["fullHouse"].push({ playerName, ticketNum })
+          io.emit("prizeClaimed", { ticketNum, playerName, prize: "🎉 Full House", prizeKey: "fullHouse" })
+        })
         saveState()
-        io.emit("prizeClaimed", { ticketNum, playerName, prize: "🎉 Full House", prizeKey: "fullHouse" })
-      } else if(doSecond && has1st && !has2nd){
-        gameState.globalClaimed["secondHouse"]       = { playerName, ticketNum }
-        gameState.globalClaimed[tNum+"_secondHouse"] = { playerName, ticketNum }
-        saveState()
-        io.emit("prizeClaimed", { ticketNum, playerName, prize: "🥇 Second Full House", prizeKey: "secondHouse" })
-      } else if(doThird && has1st && has2nd && !has3rd){
-        gameState.globalClaimed["thirdHouse"]       = { playerName, ticketNum }
-        gameState.globalClaimed[tNum+"_thirdHouse"] = { playerName, ticketNum }
-        saveState()
-        io.emit("prizeClaimed", { ticketNum, playerName, prize: "🏅 Third Full House", prizeKey: "thirdHouse" })
       }
-    })
+      // 2nd house: only if 1st already claimed and 2nd not yet
+      else if(doSecond && gameState.globalClaimed["fullHouse"] && !gameState.globalClaimed["secondHouse"]){
+        gameState.globalClaimed["secondHouse"] = []
+        qualifying.forEach(({ ticketNum, playerName, tNum }) => {
+          gameState.globalClaimed[tNum+"_secondHouse"] = { playerName, ticketNum }
+          gameState.globalClaimed["secondHouse"].push({ playerName, ticketNum })
+          io.emit("prizeClaimed", { ticketNum, playerName, prize: "🥇 Second Full House", prizeKey: "secondHouse" })
+        })
+        saveState()
+      }
+      // 3rd house: only if 1st and 2nd already claimed and 3rd not yet
+      else if(doThird && gameState.globalClaimed["fullHouse"] && gameState.globalClaimed["secondHouse"] && !gameState.globalClaimed["thirdHouse"]){
+        gameState.globalClaimed["thirdHouse"] = []
+        qualifying.forEach(({ ticketNum, playerName, tNum }) => {
+          gameState.globalClaimed[tNum+"_thirdHouse"] = { playerName, ticketNum }
+          gameState.globalClaimed["thirdHouse"].push({ playerName, ticketNum })
+          io.emit("prizeClaimed", { ticketNum, playerName, prize: "🏅 Third Full House", prizeKey: "thirdHouse" })
+        })
+        saveState()
+      }
+    }
   }
 
-  const allDone = prizes.every(p => {
-    if(p.key==="fullHouse")   return !!gameState.globalClaimed["fullHouse"]
-    if(p.key==="secondHouse") return !!gameState.globalClaimed["secondHouse"]
-    if(p.key==="thirdHouse")  return !!gameState.globalClaimed["thirdHouse"]
-    return !!gameState.globalClaimed[p.key]
-  })
+  // Game over: every active prize has been claimed
+  const allDone = prizes.every(p => !!gameState.globalClaimed[p.key])
   if(allDone){ console.log("🎉 GAME OVER"); io.emit("gameOver") }
 }
 
@@ -338,7 +365,6 @@ io.on("connection", (socket) => {
     io.to(socketId).emit("yourHoldReleased", ticketNum)
   })
 
-  // ── RELEASE CONFIRMED BOOKING ── 
   socket.on("releaseConfirmedBooking", (ticketNum) => {
     if(!gameState.bookedTickets[ticketNum]) return
     const playerName = gameState.bookedTickets[ticketNum]
