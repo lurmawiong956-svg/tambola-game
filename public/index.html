@@ -1,8 +1,9 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-  <title>Tambola</title>
+  <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Tambola</title>
   <link rel="stylesheet" href="style.css">
   <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
 </head>
@@ -10,80 +11,57 @@
 
   <h1>🎱 TAMBOLA</h1>
 
-  <!-- ══ SCREEN 1: WAITING ══ -->
+  <!-- ══ WAITING ══ -->
   <div id="waitScreen">
-    <div id="waitMsg">⏳ Waiting for admin to start the game...</div>
+    <div id="waitMsg">
+      ⏳ Waiting for the game to begin&hellip;<br>
+      <strong>Check back soon!</strong>
+    </div>
   </div>
 
-  <!-- ══ SCREEN 2: BOOKING (tickets available, no timer yet) ══ -->
+  <!-- ══ BOOKING ══ -->
   <div id="bookingScreen" style="display:none">
-    <h2>📋 Available Tickets</h2>
-    <p id="ticketInfoPre"></p>
-    <div id="ticketListPre" style="max-width:600px;margin:0 auto;"></div>
-
-    <div id="selectionPanelPre" style="display:none">
-      <div class="selectionRow">
-        <span id="selectionCountPre"></span>
-        <input type="text" id="playerNamePre" placeholder="Enter your name">
-        <button onclick="bookAllSelected()">✅ Book</button>
-        <button class="changeBtn" onclick="clearSelection()">✖</button>
-      </div>
-    </div>
-
-    <div id="ticketPreviewAreaPre" style="margin-top:16px;"></div>
-
+    <h2>📋 Select Your Tickets</h2>
+    <div id="ticketInfoPre" class="info-bar"></div>
+    <div id="ticketListPre"></div>
+    <div id="ticketPreviewAreaPre" style="margin-top:12px;"></div>
     <div id="myTicketsSectionPre" style="display:none">
       <h2>My Booked Tickets</h2>
       <div id="myTicketsListPre"></div>
     </div>
   </div>
 
-  <!-- ══ SCREEN 3: COUNTDOWN (timer + booking) ══ -->
+  <!-- ══ COUNTDOWN ══ -->
   <div id="countdownScreen" style="display:none">
     <div class="countdown-box">
       <div class="countdown-label">Game starts in</div>
       <div id="countdownTimer" class="countdown-number">--</div>
       <div class="countdown-sub">seconds</div>
     </div>
-
-    <h2>📋 Available Tickets</h2>
-    <p id="ticketInfoCd"></p>
-    <div id="ticketListCd" style="max-width:600px;margin:0 auto;"></div>
-
-    <div id="selectionPanelCd" style="display:none">
-      <div class="selectionRow">
-        <span id="selectionCountCd"></span>
-        <input type="text" id="playerNameCd" placeholder="Enter your name">
-        <button onclick="bookAllSelected()">✅ Book</button>
-        <button class="changeBtn" onclick="clearSelection()">✖</button>
-      </div>
-    </div>
-
-    <div id="ticketPreviewAreaCd" style="margin-top:16px;"></div>
-
+    <h2>📋 Select Your Tickets</h2>
+    <div id="ticketInfoCd" class="info-bar"></div>
+    <div id="ticketListCd"></div>
+    <div id="ticketPreviewAreaCd" style="margin-top:12px;"></div>
     <div id="myTicketsSectionCd" style="display:none">
       <h2>My Booked Tickets</h2>
       <div id="myTicketsListCd"></div>
     </div>
-
-    <div id="winnersSectionCd" style="display:none;background:rgba(255,215,0,0.07);border:1px solid rgba(255,215,0,0.25);border-radius:16px;padding:16px 20px;max-width:600px;margin:16px auto;">
+    <div id="winnersSectionCd" class="winners-section" style="display:none">
       <h2>🏆 Winners</h2>
       <div id="playerWinnersListCd"></div>
     </div>
   </div>
 
-  <!-- ══ SCREEN 4: GAME LIVE ══ -->
+  <!-- ══ GAME LIVE ══ -->
   <div id="gameScreen" style="display:none">
 
     <div class="current-number-box">
       <div class="cnum-label">Current Number</div>
       <div id="currentNumber">-</div>
     </div>
-    <div style="text-align:center;margin:8px 0;">
-      <button id="audioBtn" onclick="toggleAudioCommentary()"
-        style="font-size:13px;padding:7px 18px;background:rgba(255,255,255,0.12);border-radius:20px;border:1px solid rgba(255,255,255,0.2);">
-        🔊 Tap to enable audio
-      </button>
+
+    <div style="text-align:center;margin:4px 0 8px;">
+      <button id="audioBtn" onclick="toggleAudioCommentary()">🔊 Tap to enable audio</button>
     </div>
 
     <h2>Called Numbers</h2>
@@ -92,10 +70,9 @@
     <hr>
 
     <div id="myTicketsSection">
-      <h2>My Booked Tickets</h2>
-      <div id="myTicketsList" style="max-height:300px;overflow-y:auto;padding-right:4px;"></div>
-      <br>
-      <button onclick="printMyTickets()">🖨️ Print My Tickets</button>
+      <h2>My Tickets</h2>
+      <div id="myTicketsList"></div>
+      <button onclick="printMyTickets()" style="margin-top:8px;background:rgba(255,255,255,0.08);border:1px solid var(--border);color:var(--text-dim);">🖨️ Print</button>
     </div>
 
     <hr>
@@ -103,7 +80,7 @@
     <div id="searchSection">
       <h2>🔍 Search by Name</h2>
       <div class="searchRow">
-        <input type="text" id="searchInput" placeholder="Type a name to find ticket..." oninput="searchAndScroll()">
+        <input type="text" id="searchInput" placeholder="Search player name…" oninput="searchAndScroll()">
         <button class="changeBtn" onclick="clearSearch()">✖</button>
       </div>
       <div id="searchResults"></div>
@@ -111,15 +88,15 @@
 
     <hr>
 
-    <div style="max-width:600px;margin:0 auto;">
+    <div style="max-width:500px;margin:0 auto;">
       <h2>📋 All Tickets</h2>
-      <p id="ticketInfo"></p>
-      <div id="ticketList" style="height:820px;max-height:80vh;overflow-y:scroll;padding-right:4px;border-radius:12px;"></div>
+      <div id="ticketInfo" class="info-bar" style="justify-content:center;margin-bottom:8px;"></div>
+      <div id="ticketList"></div>
     </div>
 
     <hr>
 
-    <div id="winnersSection" style="display:none;background:rgba(255,215,0,0.07);border:1px solid rgba(255,215,0,0.25);border-radius:16px;padding:16px 20px;max-width:600px;margin:16px auto;">
+    <div id="winnersSection" class="winners-section" style="display:none">
       <h2>🏆 Prize Winners</h2>
       <div id="playerWinnersList"></div>
     </div>
