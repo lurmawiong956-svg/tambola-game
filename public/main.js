@@ -83,7 +83,8 @@ function buildTicketList(listId, infoId){
     updateInfo(infoId); return
   }
 
-  // ── BOOKING / COUNTDOWN SCREENS: show ALL tickets as grids with booking UI ──
+  // ── BOOKING / COUNTDOWN SCREENS: show ALL tickets as grids with tap-to-select ──
+  ensureFloatingBookBar()
   const totalSheets = Math.ceil(totalTickets / 6)
   for(let s = 0; s < totalSheets; s++){
     const block = document.createElement("div")
@@ -95,7 +96,7 @@ function buildTicketList(listId, infoId){
     block.appendChild(label)
 
     const grid = document.createElement("div")
-    grid.style.cssText = "display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:12px;"
+    grid.style.cssText = "display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:12px;"
 
     for(let t = 0; t < 6; t++){
       const num = s*6+t+1; if(num > totalTickets) break
@@ -112,15 +113,167 @@ function buildTicketList(listId, infoId){
   updateInfo(infoId)
 }
 
+/* ── FLOATING BOOKING BAR ── */
+function ensureFloatingBookBar(){
+  if(document.getElementById("floatingBookBar")) return
+  const bar = document.createElement("div")
+  bar.id = "floatingBookBar"
+  bar.style.cssText = [
+    "position:fixed;bottom:0;left:0;right:0;z-index:9000;",
+    "background:linear-gradient(135deg,#1a237e,#283593);",
+    "border-top:2px solid rgba(255,204,128,0.5);",
+    "padding:12px 16px;display:none;",
+    "box-shadow:0 -4px 24px rgba(0,0,0,0.5);",
+    "flex-direction:column;gap:10px;"
+  ].join("")
+  bar.innerHTML = `
+    <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;justify-content:center;">
+      <span id="fbbCount" style="font-size:13px;font-weight:700;color:#ffcc80;min-width:120px;text-align:center;"></span>
+      <input id="fbbName" type="text" placeholder="Enter your name"
+        style="flex:1;min-width:160px;max-width:260px;padding:9px 14px;font-size:14px;border-radius:10px;
+               border:1.5px solid rgba(255,255,255,0.3);background:rgba(255,255,255,0.12);color:#fff;
+               outline:none;font-family:'Poppins',sans-serif;">
+      <button id="fbbBook" onclick="bookAllGridSelected()"
+        style="padding:9px 22px;font-size:14px;font-weight:700;background:linear-gradient(135deg,#43a047,#2e7d32);
+               color:white;border:none;border-radius:10px;cursor:pointer;white-space:nowrap;font-family:'Poppins',sans-serif;">
+        ✅ Book
+      </button>
+      <button onclick="clearGridSelection()"
+        style="padding:9px 14px;font-size:13px;background:rgba(255,255,255,0.1);color:rgba(255,255,255,0.7);
+               border:1px solid rgba(255,255,255,0.2);border-radius:10px;cursor:pointer;font-family:'Poppins',sans-serif;">
+        ✖ Clear
+      </button>
+    </div>
+    <div id="fbbTicketList" style="font-size:12px;color:rgba(255,255,255,0.6);text-align:center;"></div>
+  `
+  document.body.appendChild(bar)
+
+  // Add bottom padding to page so bar doesn't cover content
+  document.body.style.paddingBottom = "90px"
+
+  const inp = bar.querySelector("#fbbName")
+  if(inp) inp.addEventListener("keydown", e => { if(e.key === "Enter") bookAllGridSelected() })
+}
+
+function updateFloatingBar(){
+  const bar = document.getElementById("floatingBookBar")
+  if(!bar) return
+  const count = gridSelectedTickets.length
+  if(count === 0){
+    bar.style.display = "none"
+    return
+  }
+  bar.style.display = "flex"
+  const countEl = document.getElementById("fbbCount")
+  const listEl  = document.getElementById("fbbTicketList")
+  if(countEl) countEl.innerText = count === 1 ? "1 ticket selected" : count+" tickets selected"
+  if(listEl)  listEl.innerText  = "Ticket" + (count > 1 ? "s" : "") + " #" + gridSelectedTickets.join(", #")
+}
+
+let gridSelectedTickets = []
+
+function toggleGridSelect(num){
+  if(gridSelectedTickets.includes(num)){
+    gridSelectedTickets = gridSelectedTickets.filter(t => t !== num)
+  } else {
+    gridSelectedTickets.push(num)
+  }
+  // Update card visual
+  const card = document.getElementById("bookcard"+num)
+  if(card){
+    const isSelected = gridSelectedTickets.includes(num)
+    card.style.outline = isSelected ? "3px solid #43a047" : "none"
+    card.style.boxShadow = isSelected ? "0 0 0 3px rgba(67,160,71,0.4), 0 4px 16px rgba(0,0,0,0.3)" : "0 4px 16px rgba(0,0,0,0.3)"
+    const footer = document.getElementById("bookfooter"+num)
+    if(footer){
+      footer.style.background = isSelected ? "#e8f5e9" : "#f5f5f5"
+      const label = footer.querySelector(".select-label")
+      if(label) label.innerText = isSelected ? "✓ Selected" : "Tap to select"
+      label.style.color = isSelected ? "#2e7d32" : "#888"
+    }
+  }
+  updateFloatingBar()
+}
+
+function clearGridSelection(){
+  const prev = [...gridSelectedTickets]
+  gridSelectedTickets = []
+  prev.forEach(num => {
+    const card = document.getElementById("bookcard"+num)
+    if(card){
+      card.style.outline = "none"
+      card.style.boxShadow = "0 4px 16px rgba(0,0,0,0.3)"
+      const footer = document.getElementById("bookfooter"+num)
+      if(footer){
+        footer.style.background = "#f5f5f5"
+        const label = footer.querySelector(".select-label")
+        if(label){ label.innerText = "Tap to select"; label.style.color = "#888" }
+      }
+    }
+  })
+  updateFloatingBar()
+}
+
+function bookAllGridSelected(){
+  const bar = document.getElementById("floatingBookBar")
+  const inp = bar ? bar.querySelector("#fbbName") : null
+  const name = inp ? inp.value.trim() : ""
+  if(!name){
+    if(inp){ inp.focus(); inp.style.borderColor="#e53935"; setTimeout(()=>inp.style.borderColor="rgba(255,255,255,0.3)",1500) }
+    showToast("⚠️ Please enter your name first")
+    return
+  }
+  if(gridSelectedTickets.length === 0){ showToast("⚠️ No tickets selected"); return }
+
+  // Filter out any that got booked/held since selection
+  const conflict = gridSelectedTickets.filter(t => bookedTickets[t] || onHoldTickets[t])
+  if(conflict.length > 0){
+    showToast("⚠️ Ticket(s) #"+conflict.join(", #")+" no longer available — removed from selection")
+    gridSelectedTickets = gridSelectedTickets.filter(t => !bookedTickets[t] && !onHoldTickets[t])
+    conflict.forEach(num => {
+      const card = document.getElementById("bookcard"+num)
+      if(card){ card.style.outline="none"; card.style.boxShadow="0 4px 16px rgba(0,0,0,0.3)" }
+    })
+    updateFloatingBar()
+    if(gridSelectedTickets.length === 0) return
+  }
+
+  const ticketsToHold = [...gridSelectedTickets]
+  clearGridSelection()
+  if(inp) inp.value = ""
+
+  socket.emit("requestHold", { tickets: ticketsToHold, playerName: name })
+  showToast("📨 Request sent for Ticket"+( ticketsToHold.length > 1 ? "s" : "")+" #"+ticketsToHold.join(", #")+"!")
+
+  const sheetsText = ticketsToHold.map(n => "Ticket #"+n+" (Sheet "+(Math.floor((n-1)/6)+1)+")").join("\n")
+  const msg = "🎱 *Tambola Booking Request*\n\n👤 *Name:* "+name+"\n🎟 *Tickets:*\n"+sheetsText+"\n\nPlease confirm! 🙏"
+  setTimeout(() => window.open("https://wa.me/918731873667?text="+encodeURIComponent(msg),"_blank"), 300)
+}
+
 /* ── BUILD A SINGLE TICKET CARD FOR BOOKING SCREEN ── */
 function buildBookingTicketCard(num, ticket){
-  const isMyBooked   = myBookedTickets.includes(num)
-  const isMyHeld     = myHeldTickets.includes(num)
-  const isBooked     = !!bookedTickets[num]
-  const isOnHold     = !!onHoldTickets[num]
+  const isMyBooked = myBookedTickets.includes(num)
+  const isMyHeld   = myHeldTickets.includes(num)
+  const isBooked   = !!bookedTickets[num]
+  const isOnHold   = !!onHoldTickets[num]
+  const isAvail    = !isBooked && !isOnHold && !isMyHeld && !isMyBooked
+  const isSelected = gridSelectedTickets.includes(num)
 
   const card = document.createElement("div")
-  card.style.cssText = "background:white;border-radius:12px;overflow:hidden;box-shadow:0 4px 16px rgba(0,0,0,0.3);"
+  card.style.cssText = [
+    "background:white;border-radius:12px;overflow:hidden;",
+    "box-shadow:"+(isSelected ? "0 0 0 3px rgba(67,160,71,0.4), 0 4px 16px rgba(0,0,0,0.3)" : "0 4px 16px rgba(0,0,0,0.3)")+";",
+    "outline:"+(isSelected ? "3px solid #43a047" : "none")+";",
+    isAvail ? "cursor:pointer;" : ""
+  ].join("")
+
+  // Clicking anywhere on an available card toggles selection
+  if(isAvail){
+    card.onclick = (e) => {
+      // Don't trigger if clicking inside footer (in case of future inputs)
+      toggleGridSelect(num)
+    }
+  }
 
   // Header
   let hdrBg = "linear-gradient(135deg,#1976d2,#0d47a1)"
@@ -130,15 +283,18 @@ function buildBookingTicketCard(num, ticket){
     hdrText = '<span style="color:#ffeb3b;font-size:12px;font-weight:700;">✅ '+bookedTickets[num]+'</span>'
   } else if(isBooked){
     hdrBg = "linear-gradient(135deg,#424242,#212121)"
-    hdrText = '<span style="color:#ef9a9a;font-size:12px;font-weight:700;">🔒 BOOKED</span>'
+    hdrText = '<span style="color:#ef9a9a;font-size:12px;font-weight:700;">🔒 '+bookedTickets[num]+'</span>'
   } else if(isMyHeld){
     hdrBg = "linear-gradient(135deg,#f57f17,#e65100)"
     hdrText = '<span style="color:#fff3e0;font-size:12px;font-weight:700;">⏳ Awaiting...</span>'
   } else if(isOnHold){
     hdrBg = "linear-gradient(135deg,#bf360c,#870000)"
     hdrText = '<span style="color:#ffccbc;font-size:12px;font-weight:700;">⏳ On Hold</span>'
+  } else if(isSelected){
+    hdrBg = "linear-gradient(135deg,#43a047,#2e7d32)"
+    hdrText = '<span style="color:#fff;font-size:12px;font-weight:700;">✓ Selected</span>'
   } else {
-    hdrText = '<span style="color:#a5d6a7;font-size:12px;font-weight:700;">Available</span>'
+    hdrText = '<span style="color:#a5d6a7;font-size:12px;font-weight:700;">Tap to select</span>'
   }
 
   const hdr = document.createElement("div")
@@ -158,7 +314,6 @@ function buildBookingTicketCard(num, ticket){
       if(val !== 0){
         cell.style.cssText = "height:36px;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:12px;border-radius:5px;border:1px solid #e0e0e0;background:#f8f9fa;color:#1a1a2e;"
         cell.innerText = val
-        cell.id = "bcell_"+num+"_"+val
       } else {
         cell.style.cssText = "height:36px;border-radius:5px;background:#e9ecef;border:1px solid #dee2e6;"
       }
@@ -168,63 +323,32 @@ function buildBookingTicketCard(num, ticket){
   gridWrap.appendChild(ticketGrid)
   card.appendChild(gridWrap)
 
-  // Booking footer — only for available tickets
-  if(!isBooked && !isOnHold && !isMyHeld && !isMyBooked){
-    const footer = document.createElement("div")
-    footer.id = "bookfooter"+num
-    footer.style.cssText = "padding:8px 10px 10px;display:flex;gap:6px;align-items:center;background:#f5f5f5;border-top:1px solid #eee;"
-    const inp = document.createElement("input")
-    inp.type = "text"; inp.placeholder = "Your name"
-    inp.id = "bookinput"+num
-    inp.style.cssText = "flex:1;padding:7px 10px;font-size:12px;border:1px solid #ccc;border-radius:8px;outline:none;font-family:'Poppins',sans-serif;color:#333;background:white;"
-    inp.addEventListener("keydown", e => { if(e.key==="Enter") bookSingleTicket(num) })
-    const btn = document.createElement("button")
-    btn.innerText = "Book"
-    btn.style.cssText = "padding:7px 14px;font-size:12px;font-weight:700;background:linear-gradient(135deg,#43a047,#2e7d32);color:white;border:none;border-radius:8px;cursor:pointer;white-space:nowrap;font-family:'Poppins',sans-serif;"
-    btn.onclick = () => bookSingleTicket(num)
-    footer.appendChild(inp)
-    footer.appendChild(btn)
-    card.appendChild(footer)
+  // Footer strip
+  const footer = document.createElement("div")
+  footer.id = "bookfooter"+num
+  if(isAvail){
+    footer.style.cssText = "padding:6px 12px;text-align:center;border-top:1px solid #eee;background:"+(isSelected?"#e8f5e9":"#f5f5f5")+";"
+    const label = document.createElement("span")
+    label.className = "select-label"
+    label.style.cssText = "font-size:12px;font-weight:600;color:"+(isSelected?"#2e7d32":"#888")+";"
+    label.innerText = isSelected ? "✓ Selected" : "Tap to select"
+    footer.appendChild(label)
   } else if(isBooked && !isMyBooked){
-    const footer = document.createElement("div")
-    footer.style.cssText = "padding:8px 12px;text-align:center;background:#f5f5f5;border-top:1px solid #eee;"
+    footer.style.cssText = "padding:6px 12px;text-align:center;background:#f5f5f5;border-top:1px solid #eee;"
     footer.innerHTML = '<span style="font-size:12px;color:#757575;font-weight:600;">Booked by '+bookedTickets[num]+'</span>'
-    card.appendChild(footer)
   } else if(isOnHold){
-    const footer = document.createElement("div")
-    footer.style.cssText = "padding:8px 12px;text-align:center;background:#fff3e0;border-top:1px solid #ffe0b2;"
+    footer.style.cssText = "padding:6px 12px;text-align:center;background:#fff3e0;border-top:1px solid #ffe0b2;"
     footer.innerHTML = '<span style="font-size:12px;color:#e65100;font-weight:600;">On hold by '+onHoldTickets[num]+'</span>'
-    card.appendChild(footer)
   } else if(isMyHeld){
-    const footer = document.createElement("div")
-    footer.style.cssText = "padding:8px 12px;text-align:center;background:#fff8e1;border-top:1px solid #ffecb3;"
+    footer.style.cssText = "padding:6px 12px;text-align:center;background:#fff8e1;border-top:1px solid #ffecb3;"
     footer.innerHTML = '<span style="font-size:12px;color:#f57f17;font-weight:600;">⏳ Pending confirmation...</span>'
-    card.appendChild(footer)
   } else if(isMyBooked){
-    const footer = document.createElement("div")
-    footer.style.cssText = "padding:8px 12px;text-align:center;background:#e8f5e9;border-top:1px solid #c8e6c9;"
+    footer.style.cssText = "padding:6px 12px;text-align:center;background:#e8f5e9;border-top:1px solid #c8e6c9;"
     footer.innerHTML = '<span style="font-size:12px;color:#2e7d32;font-weight:700;">✅ Booked: '+bookedTickets[num]+'</span>'
-    card.appendChild(footer)
   }
+  card.appendChild(footer)
 
   return card
-}
-
-/* ── BOOK A SINGLE TICKET DIRECTLY FROM GRID ── */
-function bookSingleTicket(num){
-  const inp = document.getElementById("bookinput"+num)
-  if(!inp) return
-  const name = inp.value.trim()
-  if(!name){ inp.focus(); inp.style.borderColor = "#e53935"; setTimeout(()=>inp.style.borderColor="#ccc",1500); return }
-  if(bookedTickets[num]){ showToast("❌ Ticket #"+num+" just got booked!"); refreshBookingCard(num); return }
-  if(onHoldTickets[num]){ showToast("⏳ Ticket #"+num+" is on hold"); refreshBookingCard(num); return }
-
-  socket.emit("requestHold", { tickets: [num], playerName: name })
-  showToast("📨 Request sent for Ticket #"+num+"!")
-
-  const sheet = Math.floor((num-1)/6)+1
-  const msg = "🎱 *Tambola Booking Request*\n\n👤 *Name:* "+name+"\n🎟 *Tickets:*\nTicket #"+num+" (Sheet "+sheet+")\n\nPlease confirm! 🙏"
-  setTimeout(() => window.open("https://wa.me/918731873667?text="+encodeURIComponent(msg),"_blank"), 300)
 }
 
 /* ── REFRESH A SINGLE BOOKING CARD ── */
@@ -235,6 +359,11 @@ function refreshBookingCard(num){
   const ticketIdx = (num-1) % 6
   const ticket = ticketSheets[sheetIdx] && ticketSheets[sheetIdx][ticketIdx]
   if(!ticket) return
+  // If this ticket is now booked/held, remove from selection silently
+  if((bookedTickets[num] || onHoldTickets[num]) && gridSelectedTickets.includes(num)){
+    gridSelectedTickets = gridSelectedTickets.filter(t => t !== num)
+    updateFloatingBar()
+  }
   const newCard = buildBookingTicketCard(num, ticket)
   newCard.id = "bookcard"+num
   oldCard.replaceWith(newCard)
@@ -740,6 +869,8 @@ socket.on("numberCalled", (number) => {
 socket.on("resetGame", () => {
   if(countdownInterval){ clearInterval(countdownInterval); countdownInterval=null }
   claimedPrizes={}; globalClaimed={}; activePrizeKeys=null; playerWinnersStore=[]
+  gridSelectedTickets=[]
+  const bar=document.getElementById("floatingBookBar"); if(bar) bar.style.display="none"
   ;['playerWinnersList','playerWinnersListCd'].forEach(id=>{const e=document.getElementById(id);if(e)e.innerHTML=''})
   ;['winnersSection','winnersSectionCd'].forEach(id=>{const e=document.getElementById(id);if(e)e.style.display='none'})
   totalTickets=0; bookedTickets={}; onHoldTickets={}
