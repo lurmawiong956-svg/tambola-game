@@ -436,30 +436,13 @@ function addWinnerToLog(prize, prizeKey, playerName, ticketNum){
   // Check if a row for this prize already exists in the log
   const existingGroup = document.getElementById("prizegroup_"+prizeKey)
   if(existingGroup){
-    // Append another winner badge to the existing prize group
-    const winnersDiv = existingGroup.querySelector(".prize-winners-div")
-    if(winnersDiv){
-      const badge = document.createElement("span")
-      badge.style.cssText = "display:inline-flex;align-items:center;gap:6px;padding:4px 10px;background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.12);border-radius:20px;font-size:13px;"
-      badge.innerHTML = '<span style="color:#a5d6a7;font-weight:600;">'+playerName+'</span>'
-        +'<span style="color:rgba(255,255,255,0.4);font-size:11px;">#'+ticketNum+' · Sh '+sheet+'</span>'
-      winnersDiv.appendChild(badge)
-    }
+    const wb = existingGroup.querySelector(".winner-badges")
+    if(wb) wb.insertAdjacentHTML("beforeend", '<span class="winner-badge"><span class="wname">'+playerName+'</span><span class="wticket">#'+ticketNum+' Sh'+sheet+'</span></span>')
   } else {
-    // Create a new prize group row
     const row = document.createElement("div")
     row.id = "prizegroup_"+prizeKey
-    row.style.cssText = "padding:10px 14px;margin-bottom:8px;background:rgba(255,255,255,0.06);border-radius:10px;border:1px solid rgba(255,215,0,0.15);"
-    const winnersDiv = document.createElement("div")
-    winnersDiv.className = "prize-winners-div"
-    winnersDiv.style.cssText = "display:flex;flex-wrap:wrap;gap:6px;margin-top:6px;"
-    const badge = document.createElement("span")
-    badge.style.cssText = "display:inline-flex;align-items:center;gap:6px;padding:4px 10px;background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.12);border-radius:20px;font-size:13px;"
-    badge.innerHTML = '<span style="color:#a5d6a7;font-weight:600;">'+playerName+'</span>'
-      +'<span style="color:rgba(255,255,255,0.4);font-size:11px;">#'+ticketNum+' · Sh '+sheet+'</span>'
-    winnersDiv.appendChild(badge)
-    row.innerHTML = '<span style="font-size:15px;font-weight:700;color:#ffcc80;">'+prize+'</span>'
-    row.appendChild(winnersDiv)
+    row.className = "prize-group"
+    row.innerHTML = '<div class="prize-group-label">'+prize+'</div><div class="winner-badges"><span class="winner-badge"><span class="wname">'+playerName+'</span><span class="wticket">#'+ticketNum+' Sh'+sheet+'</span></span></div>'
     log.insertBefore(row, log.firstChild)
   }
 
