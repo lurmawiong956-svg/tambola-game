@@ -611,3 +611,32 @@ input:focus { border-color: var(--gold); }
   .searchRow input { min-width: 150px; }
   #myTicketsSection { margin-top: 10px; }
 }
+
+/* ── SHEET FILTER TAB BAR ── */
+#sheetTabBar_ticketListPre,
+#sheetTabBar_ticketListCd {
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  overflow-x: auto;
+  flex-wrap: nowrap;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+}
+#sheetTabBar_ticketListPre::-webkit-scrollbar,
+#sheetTabBar_ticketListCd::-webkit-scrollbar { display: none; }
+
+@media (max-width: 600px) {
+  #sheetTabBar_ticketListPre,
+  #sheetTabBar_ticketListCd {
+    padding: 6px 5px;
+    gap: 4px;
+  }
+  #sheetTabBar_ticketListPre button,
+  #sheetTabBar_ticketListCd button {
+    font-size: 10px;
+    padding: 4px 10px;
+    white-space: nowrap;
+    flex-shrink: 0;
+  }
+}
