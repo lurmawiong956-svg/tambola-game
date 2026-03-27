@@ -939,9 +939,7 @@ function updateCalledNumbersList(){
   if(!countEl || !listEl) return
   const total = markedNumbers.length
   countEl.innerText = total + " / 90 called"
-  // Prepend newest number as a pill (most recent first)
   if(total === 0){ listEl.innerHTML = '<span style="color:var(--text-dim);font-size:11px;">No numbers called yet</span>'; return }
-  // Rebuild fully (simple, always accurate)
   listEl.innerHTML = ""
   ;[...markedNumbers].reverse().forEach((n, i) => {
     const pill = document.createElement("span")
@@ -957,6 +955,8 @@ function updateCalledNumbersList(){
     listEl.appendChild(pill)
   })
 }
+
+socket.on("numberCalled", (number) => {
   const el = document.getElementById("currentNumber"); if(el) el.innerText = number
   markedNumbers.push(number); announceNumber(number)
   const b = document.getElementById("b"+number); if(b) b.classList.add("called")
