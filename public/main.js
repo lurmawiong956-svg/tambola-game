@@ -636,37 +636,68 @@ function searchAndScroll(){
   const query = document.getElementById("searchInput").value.trim().toLowerCase()
   const resultsEl = document.getElementById("searchResults")
   if(resultsEl) resultsEl.innerHTML = ""
-  // All tickets always stay visible — only highlight changes
+
   if(!query){
-    document.querySelectorAll('[id^="allcard"]').forEach(card => {
-      card.style.outline = ""
-      card.style.boxShadow = ""
-      card.style.opacity = ""
-    })
+    // Restore original order (by ticket number) and clear all styles
+    const list = document.getElementById("ticketList")
+    if(list){
+      const cards = [...list.querySelectorAll('[id^="allcard"]')]
+      cards.sort((a, b) => parseInt(a.id.replace("allcard","")) - parseInt(b.id.replace("allcard","")))
+      cards.forEach(c => {
+        c.style.outline = ""
+        c.style.boxShadow = ""
+        c.style.opacity = ""
+        list.appendChild(c)
+      })
+    }
     return
   }
+
   const matchIds = Object.entries(bookedTickets)
     .filter(([,name]) => name.toLowerCase().includes(query))
     .map(([tNum]) => "allcard"+tNum)
-  document.querySelectorAll('[id^="allcard"]').forEach(card => {
-    if(matchIds.includes(card.id)){
-      card.style.outline = "2px solid var(--gold)"
-      card.style.boxShadow = "0 0 0 4px var(--gold-dim), 0 8px 28px rgba(0,0,0,0.5)"
-      card.style.opacity = "1"
-    } else {
+
+  const list = document.getElementById("ticketList")
+  if(!list){
+    // fallback: just dim
+    document.querySelectorAll('[id^="allcard"]').forEach(card => {
+      card.style.opacity = matchIds.includes(card.id) ? "1" : "0.35"
+    })
+    return
+  }
+
+  if(matchIds.length === 0){
+    // No match — dim everything, restore order
+    document.querySelectorAll('[id^="allcard"]').forEach(card => {
       card.style.outline = ""
       card.style.boxShadow = ""
-      card.style.opacity = "0.38"
-    }
-  })
-  if(matchIds.length > 0){
-    const firstCard = document.getElementById(matchIds[0])
-    if(firstCard) firstCard.scrollIntoView({ behavior:"smooth", block:"center" })
-  } else if(resultsEl){
-    resultsEl.innerHTML = '<p style="color:var(--text-dim);font-size:13px;padding:6px;">No tickets found for "'+query+'"</p>'
-    // No match — reset all to full opacity
-    document.querySelectorAll('[id^="allcard"]').forEach(card => { card.style.opacity = "" })
+      card.style.opacity = "0.35"
+    })
+    if(resultsEl) resultsEl.innerHTML = '<p style="color:var(--text-dim);font-size:13px;padding:6px;">No tickets found for "'+query+'"</p>'
+    return
   }
+
+  // Move matched cards to top of list, then non-matched below — all stay visible
+  const allCards = [...list.querySelectorAll('[id^="allcard"]')]
+  const matched    = allCards.filter(c =>  matchIds.includes(c.id))
+  const unmatched  = allCards.filter(c => !matchIds.includes(c.id))
+
+  // Append matched first (they move to top), then unmatched
+  matched.forEach(c => {
+    c.style.outline   = "2px solid var(--gold)"
+    c.style.boxShadow = "0 0 0 4px var(--gold-dim), 0 6px 20px rgba(0,0,0,0.5)"
+    c.style.opacity   = "1"
+    list.appendChild(c)
+  })
+  unmatched.forEach(c => {
+    c.style.outline   = ""
+    c.style.boxShadow = ""
+    c.style.opacity   = "0.35"
+    list.appendChild(c)
+  })
+
+  // Scroll first match into view
+  if(matched.length > 0) matched[0].scrollIntoView({ behavior:"smooth", block:"start" })
 }
 
 function searchTickets(){ searchAndScroll() }
@@ -674,11 +705,18 @@ function searchTickets(){ searchAndScroll() }
 function clearSearch(){
   document.getElementById("searchInput").value = ""
   const resultsEl = document.getElementById("searchResults"); if(resultsEl) resultsEl.innerHTML = ""
-  document.querySelectorAll('[id^="allcard"]').forEach(card => {
-    card.style.outline = ""
-    card.style.boxShadow = ""
-    card.style.opacity = ""
-  })
+  // Restore original ticket-number order and clear all styling
+  const list = document.getElementById("ticketList")
+  if(list){
+    const cards = [...list.querySelectorAll('[id^="allcard"]')]
+    cards.sort((a, b) => parseInt(a.id.replace("allcard","")) - parseInt(b.id.replace("allcard","")))
+    cards.forEach(c => {
+      c.style.outline   = ""
+      c.style.boxShadow = ""
+      c.style.opacity   = ""
+      list.appendChild(c)
+    })
+  }
 }
 
 /* ── WINNERS LIST (multiple winners per prize) ── */
