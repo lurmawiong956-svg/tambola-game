@@ -15,6 +15,20 @@ const publicDir = fs.existsSync(path.join(__dirname, "public"))
   : __dirname
 app.use(express.static(publicDir))
 
+/* ── DEBUG ENDPOINT ── */
+app.get("/state", (req, res) => {
+  res.json({
+    started:       gameState.started,
+    totalTickets:  gameState.totalTickets,
+    sheetsLength:  gameState.sheets ? gameState.sheets.length : 0,
+    calledNumbers: gameState.calledNumbers.length,
+    startTime:     gameState.startTime,
+    bookedCount:   Object.keys(gameState.bookedTickets).length,
+    onHoldCount:   Object.keys(gameState.onHoldTickets).length,
+    activePrizes:  gameState.activePrizes
+  })
+})
+
 /* ── MONGODB CONNECTION ── */
 const MONGODB_URI = process.env.MONGODB_URI ||
   "mongodb+srv://lurmawiong956_db_user:Lur%4012345@tambola.u98nv0u.mongodb.net/tambola?retryWrites=true&w=majority&appName=tambola"
@@ -312,6 +326,7 @@ io.on("connection", (socket) => {
   }
 
   socket.on("setTicketCount", ({ count }) => {
+    console.log("✅ setTicketCount received, count:", count)
     gameState = {
       started: true, totalTickets: count,
       sheets: generateAllSheets(count),
@@ -319,6 +334,7 @@ io.on("connection", (socket) => {
       startTime: null, activePrizes: [], globalClaimed: {}
     }
     saveState()
+    console.log("✅ emitting gameStarted to all, sheets:", gameState.sheets.length)
     io.emit("gameStarted", {
       totalTickets: gameState.totalTickets, sheets: gameState.sheets,
       bookedTickets: gameState.bookedTickets, onHoldTickets: gameState.onHoldTickets,
