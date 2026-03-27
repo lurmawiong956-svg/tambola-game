@@ -538,6 +538,7 @@ function goLive(){
   buildTicketList("ticketList","ticketInfo"); createBoard()
   markedNumbers.forEach(n => { const b = document.getElementById("b"+n); if(b) b.classList.add("called") })
   if(markedNumbers.length > 0){ const el = document.getElementById("currentNumber"); if(el) el.innerText = markedNumbers[markedNumbers.length-1] }
+  updateCalledNumbersList()
   showMyTickets(); refreshTicketButtons()
 }
 
@@ -572,17 +573,37 @@ function searchAndScroll(){
   const query = document.getElementById("searchInput").value.trim().toLowerCase()
   const resultsEl = document.getElementById("searchResults")
   if(resultsEl) resultsEl.innerHTML = ""
+  // All tickets always stay visible — only highlight changes
   if(!query){
-    document.querySelectorAll('[id^="allcard"]').forEach(card => { card.style.display = ""; card.style.boxShadow = "" })
+    document.querySelectorAll('[id^="allcard"]').forEach(card => {
+      card.style.outline = ""
+      card.style.boxShadow = ""
+      card.style.opacity = ""
+    })
     return
   }
-  const matchIds = Object.entries(bookedTickets).filter(([,name]) => name.toLowerCase().includes(query)).map(([tNum]) => "allcard"+tNum)
+  const matchIds = Object.entries(bookedTickets)
+    .filter(([,name]) => name.toLowerCase().includes(query))
+    .map(([tNum]) => "allcard"+tNum)
   document.querySelectorAll('[id^="allcard"]').forEach(card => {
-    if(matchIds.includes(card.id)){ card.style.display = ""; card.style.boxShadow = "0 0 0 3px #ffcc80, 0 8px 32px rgba(0,0,0,0.4)" }
-    else { card.style.display = "none" }
+    if(matchIds.includes(card.id)){
+      card.style.outline = "2px solid var(--gold)"
+      card.style.boxShadow = "0 0 0 4px var(--gold-dim), 0 8px 28px rgba(0,0,0,0.5)"
+      card.style.opacity = "1"
+    } else {
+      card.style.outline = ""
+      card.style.boxShadow = ""
+      card.style.opacity = "0.38"
+    }
   })
-  if(matchIds.length > 0){ const firstCard = document.getElementById(matchIds[0]); if(firstCard) firstCard.scrollIntoView({ behavior:"smooth", block:"center" }) }
-  else if(resultsEl) resultsEl.innerHTML = '<p style="color:rgba(255,255,255,0.4);font-size:14px;padding:8px;">No tickets found for "'+query+'"</p>'
+  if(matchIds.length > 0){
+    const firstCard = document.getElementById(matchIds[0])
+    if(firstCard) firstCard.scrollIntoView({ behavior:"smooth", block:"center" })
+  } else if(resultsEl){
+    resultsEl.innerHTML = '<p style="color:var(--text-dim);font-size:13px;padding:6px;">No tickets found for "'+query+'"</p>'
+    // No match — reset all to full opacity
+    document.querySelectorAll('[id^="allcard"]').forEach(card => { card.style.opacity = "" })
+  }
 }
 
 function searchTickets(){ searchAndScroll() }
@@ -590,7 +611,11 @@ function searchTickets(){ searchAndScroll() }
 function clearSearch(){
   document.getElementById("searchInput").value = ""
   const resultsEl = document.getElementById("searchResults"); if(resultsEl) resultsEl.innerHTML = ""
-  document.querySelectorAll('[id^="allcard"]').forEach(card => { card.style.display = ""; card.style.boxShadow = "" })
+  document.querySelectorAll('[id^="allcard"]').forEach(card => {
+    card.style.outline = ""
+    card.style.boxShadow = ""
+    card.style.opacity = ""
+  })
 }
 
 /* ── WINNERS LIST (multiple winners per prize) ── */
@@ -818,7 +843,31 @@ function announceNumber(num){
   else window.speechSynthesis.onvoiceschanged = trySpeak
 }
 
-socket.on("numberCalled", (number) => {
+/* ── CALLED NUMBERS LIST ── */
+function updateCalledNumbersList(){
+  const countEl = document.getElementById("calledCount")
+  const listEl  = document.getElementById("calledList")
+  if(!countEl || !listEl) return
+  const total = markedNumbers.length
+  countEl.innerText = total + " / 90 called"
+  // Prepend newest number as a pill (most recent first)
+  if(total === 0){ listEl.innerHTML = '<span style="color:var(--text-dim);font-size:11px;">No numbers called yet</span>'; return }
+  // Rebuild fully (simple, always accurate)
+  listEl.innerHTML = ""
+  ;[...markedNumbers].reverse().forEach((n, i) => {
+    const pill = document.createElement("span")
+    pill.style.cssText = [
+      "display:inline-flex;align-items:center;justify-content:center;",
+      "width:30px;height:30px;border-radius:50%;",
+      "font-family:'Playfair Display',serif;font-weight:700;font-size:12px;",
+      i === 0
+        ? "background:linear-gradient(135deg,var(--gold2),var(--gold));color:#1a0800;box-shadow:0 0 8px var(--gold-glow);"
+        : "background:var(--bg3);color:var(--text-dim);border:1px solid rgba(255,255,255,0.08);"
+    ].join("")
+    pill.innerText = n
+    listEl.appendChild(pill)
+  })
+}
   const el = document.getElementById("currentNumber"); if(el) el.innerText = number
   markedNumbers.push(number); announceNumber(number)
   const b = document.getElementById("b"+number); if(b) b.classList.add("called")
@@ -828,6 +877,7 @@ socket.on("numberCalled", (number) => {
     const parts = cell.id.split("_"), cellVal = parseInt(parts[parts.length-1])
     if(cellVal === number) cell.classList.add("marked")
   })
+  updateCalledNumbersList()
 })
 
 socket.on("resetGame", () => {
@@ -841,6 +891,8 @@ socket.on("resetGame", () => {
   selectedTickets=[]; myHeldTickets=[]; myBookedTickets=[]
   markedNumbers=[]; ticketSheets=[]; previewTicketNum=null; startTime=null
   const el = document.getElementById("currentNumber"); if(el) el.innerText="-"
+  const cc = document.getElementById("calledCount"); if(cc) cc.innerText = "0 / 90 called"
+  const cl = document.getElementById("calledList"); if(cl) cl.innerHTML = ""
   showScreen("waitScreen"); createBoard()
 })
 
