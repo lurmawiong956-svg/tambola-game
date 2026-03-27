@@ -759,8 +759,15 @@ function showToast(msg){
 
 /* ── SOCKET EVENTS ── */
 socket.on("gameStarted", (data) => {
+  console.log("gameStarted received:", {
+    totalTickets: data.totalTickets,
+    sheetsLength: data.sheets ? data.sheets.length : "NO SHEETS",
+    calledNumbers: data.calledNumbers ? data.calledNumbers.length : 0,
+    startTime: data.startTime,
+    gameLive: data.gameLive
+  })
   totalTickets = parseInt(data.totalTickets) || 0
-  if(!totalTickets){ showScreen("waitScreen"); return }  // nothing ready yet
+  if(!totalTickets){ showScreen("waitScreen"); return }
   ticketSheets = data.sheets || []
   bookedTickets = data.bookedTickets || {}
   onHoldTickets = data.onHoldTickets || {}
@@ -768,18 +775,23 @@ socket.on("gameStarted", (data) => {
   selectedTickets = []; myHeldTickets = []; myBookedTickets = []; previewTicketNum = null
   startTime = data.startTime || null
   const now = Date.now()
+  console.log("gameStarted decision:", { markedNumbers: markedNumbers.length, startTime, gameLive: data.gameLive })
   if(markedNumbers.length > 0){
+    console.log("→ goLive (numbers called)")
     goLive()
   } else if(data.gameLive){
+    console.log("→ goLive (gameLive flag)")
     goLive()
   } else if(startTime && now < startTime){
+    console.log("→ countdownScreen")
     showScreen("countdownScreen")
     buildTicketList("ticketListCd","ticketInfoCd")
     startCountdown(startTime)
   } else if(startTime && now >= startTime){
+    console.log("→ goLive (startTime passed)")
     goLive()
   } else {
-    // Tickets set, no countdown yet — show booking screen
+    console.log("→ bookingScreen")
     showScreen("bookingScreen")
     buildTicketList("ticketListPre","ticketInfoPre")
   }
