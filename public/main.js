@@ -86,10 +86,43 @@ function buildTicketList(listId, infoId){
   // ── BOOKING / COUNTDOWN SCREENS: show ALL tickets as grids with tap-to-select ──
   ensureFloatingBookBar()
   const totalSheets = Math.ceil(totalTickets / 6)
+
+  // ── SHEET FILTER TAB BAR ──
+  const tabBar = document.createElement("div")
+  tabBar.id = "sheetTabBar_"+listId
+  tabBar.style.cssText = [
+    "display:flex;flex-wrap:wrap;gap:5px;justify-content:center;",
+    "margin-bottom:10px;padding:8px 6px;",
+    "background:var(--bg2);border:1px solid var(--border);",
+    "border-radius:var(--r);position:sticky;top:0;z-index:100;"
+  ].join("")
+
+  // "All" button
+  const allBtn = document.createElement("button")
+  allBtn.innerText = "All"
+  allBtn.dataset.sheet = "all"
+  allBtn.style.cssText = "padding:5px 14px;font-size:11px;font-weight:700;border-radius:20px;border:1.5px solid var(--gold);background:var(--gold);color:#1a0800;cursor:pointer;font-family:'DM Sans',sans-serif;margin:0;box-shadow:none;transition:all 0.15s;"
+  allBtn.onclick = () => filterSheets("all", listId)
+  tabBar.appendChild(allBtn)
+
+  // Per-sheet buttons
+  for(let s = 0; s < totalSheets; s++){
+    const btn = document.createElement("button")
+    btn.innerText = "Sheet " + (s+1)
+    btn.dataset.sheet = s
+    btn.style.cssText = "padding:5px 12px;font-size:11px;font-weight:600;border-radius:20px;border:1.5px solid var(--border);background:var(--bg3);color:var(--text-dim);cursor:pointer;font-family:'DM Sans',sans-serif;margin:0;box-shadow:none;transition:all 0.15s;"
+    btn.onclick = () => filterSheets(s, listId)
+    tabBar.appendChild(btn)
+  }
+  list.appendChild(tabBar)
+
+  // ── SHEET BLOCKS ──
   for(let s = 0; s < totalSheets; s++){
     const block = document.createElement("div")
     block.className = "sheetBlock"
-    block.style.cssText = "background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.1);border-radius:14px;padding:14px 12px;margin-bottom:16px;"
+    block.id = "sheetblock_"+listId+"_"+s
+    block.style.cssText = "background:var(--bg2);border:1px solid var(--border);border-radius:var(--r);padding:9px 7px;margin-bottom:9px;"
+
     const label = document.createElement("div")
     label.className = "sheetLabel"
     label.innerText = "Sheet "+(s+1)+"  —  Tickets "+(s*6+1)+" to "+Math.min(s*6+6, totalTickets)
@@ -111,6 +144,32 @@ function buildTicketList(listId, infoId){
     list.appendChild(block)
   }
   updateInfo(infoId)
+}
+
+/* ── SHEET FILTER ── */
+let activeSheetFilter = {} // keyed by listId
+
+function filterSheets(sheetIndex, listId){
+  activeSheetFilter[listId] = sheetIndex
+  const tabBar = document.getElementById("sheetTabBar_"+listId)
+  if(tabBar){
+    tabBar.querySelectorAll("button").forEach(btn => {
+      const isActive = String(btn.dataset.sheet) === String(sheetIndex)
+      btn.style.background  = isActive ? "var(--gold)"    : "var(--bg3)"
+      btn.style.color       = isActive ? "#1a0800"        : "var(--text-dim)"
+      btn.style.borderColor = isActive ? "var(--gold)"    : "var(--border)"
+      btn.style.fontWeight  = isActive ? "700"            : "600"
+    })
+  }
+  const totalSheets = Math.ceil(totalTickets / 6)
+  for(let s = 0; s < totalSheets; s++){
+    const block = document.getElementById("sheetblock_"+listId+"_"+s)
+    if(!block) continue
+    block.style.display = (sheetIndex === "all" || sheetIndex === s) ? "" : "none"
+  }
+  // Scroll tab bar into view smoothly
+  const tabBarEl = document.getElementById("sheetTabBar_"+listId)
+  if(tabBarEl) tabBarEl.scrollIntoView({ behavior:"smooth", block:"nearest" })
 }
 
 /* ── FLOATING BOOKING BAR ── */
