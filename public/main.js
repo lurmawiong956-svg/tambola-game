@@ -442,7 +442,9 @@ function updateInfo(infoId){
   const available = totalTickets - booked - onHold
   el.innerHTML =
     '<span class="info-pill avail">'+available+' available</span>'+
+    '<span class="info-sep">|</span>'+
     '<span class="info-pill held">'+onHold+' on hold</span>'+
+    '<span class="info-sep">|</span>'+
     '<span class="info-pill booked">'+booked+' booked</span>'
 }
 
