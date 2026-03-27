@@ -258,6 +258,13 @@ async function saveState(){
   } catch(e){ console.log("Save error:", e.message) }
 }
 
+/* ── GAME STATE ── */
+let gameState = {
+  started: false, totalTickets: 0, sheets: [],
+  bookedTickets: {}, onHoldTickets: {}, calledNumbers: [],
+  startTime: null, activePrizes: [], globalClaimed: {}
+}
+
 async function loadState(){
   try {
     const saved = await Game.findById("gamestate")
@@ -274,13 +281,6 @@ async function loadState(){
     gameState.sheets        = generateAllSheets(saved.totalTickets)
     console.log("✅ State restored")
   } catch(e){ console.log("Load error:", e.message) }
-}
-
-/* ── GAME STATE ── */
-let gameState = {
-  started: false, totalTickets: 0, sheets: [],
-  bookedTickets: {}, onHoldTickets: {}, calledNumbers: [],
-  startTime: null, activePrizes: [], globalClaimed: {}
 }
 
 /* ── SOCKET ── */
