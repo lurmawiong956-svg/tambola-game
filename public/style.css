@@ -640,3 +640,30 @@ input:focus { border-color: var(--gold); }
     flex-shrink: 0;
   }
 }
+
+/* ── INFO BAR ── */
+.info-bar {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-bottom: 10px;
+}
+.info-pill {
+  padding: 3px 10px;
+  border-radius: 20px;
+  font-size: 11px;
+  font-weight: 600;
+  border: 1px solid;
+}
+.info-pill.avail  { color: #a8e6cf; border-color: rgba(168,230,207,0.3); background: rgba(168,230,207,0.08); }
+.info-pill.held   { color: var(--gold); border-color: var(--gold-dim); background: var(--gold-dim); }
+.info-pill.booked { color: #ef9a9a; border-color: rgba(239,154,154,0.3); background: rgba(239,154,154,0.08); }
+.info-sep {
+  color: var(--text-dim);
+  font-size: 12px;
+  font-weight: 400;
+  user-select: none;
+  line-height: 1;
+}
