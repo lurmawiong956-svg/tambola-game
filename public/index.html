@@ -9,7 +9,7 @@
 </head>
 <body>
 
-  <h1>🎱 NONGKREM TAMBOLA</h1>
+  <h1>🎱 TAMBOLA</h1>
 
   <!-- ══ WAITING ══ -->
   <div id="waitScreen">
@@ -66,6 +66,17 @@
 
     <h2>Called Numbers</h2>
     <div class="board" id="board"></div>
+
+    <!-- Called numbers list -->
+    <div style="background:var(--bg2);border:1px solid var(--border);border-radius:var(--r);padding:10px 12px;max-width:460px;margin:0 auto 14px;">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+        <span style="font-size:10px;font-weight:700;color:var(--gold);text-transform:uppercase;letter-spacing:2px;">Numbers Called</span>
+        <span id="calledCount" style="font-size:11px;font-weight:700;color:var(--text-dim);">0 / 90 called</span>
+      </div>
+      <div id="calledList" style="display:flex;flex-wrap:wrap;gap:5px;justify-content:flex-start;">
+        <span style="color:var(--text-dim);font-size:11px;">No numbers called yet</span>
+      </div>
+    </div>
 
     <hr>
 
