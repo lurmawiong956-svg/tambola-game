@@ -40,6 +40,7 @@ function createBoard(){
    For game screen: show booked tickets list (unchanged).
 ── */
 function buildTicketList(listId, infoId){
+  try {
   const list = document.getElementById(listId)
   if(!list || !totalTickets) return
   list.innerHTML = ""
@@ -144,6 +145,7 @@ function buildTicketList(listId, infoId){
     list.appendChild(block)
   }
   updateInfo(infoId)
+  } catch(err){ console.error("buildTicketList error:", err) }
 }
 
 /* ── SHEET FILTER ── */
@@ -759,41 +761,44 @@ function showToast(msg){
 
 /* ── SOCKET EVENTS ── */
 socket.on("gameStarted", (data) => {
-  console.log("gameStarted received:", {
-    totalTickets: data.totalTickets,
-    sheetsLength: data.sheets ? data.sheets.length : "NO SHEETS",
-    calledNumbers: data.calledNumbers ? data.calledNumbers.length : 0,
-    startTime: data.startTime,
-    gameLive: data.gameLive
-  })
-  totalTickets = parseInt(data.totalTickets) || 0
-  if(!totalTickets){ showScreen("waitScreen"); return }
-  ticketSheets = data.sheets || []
-  bookedTickets = data.bookedTickets || {}
-  onHoldTickets = data.onHoldTickets || {}
-  markedNumbers = data.calledNumbers || []
-  selectedTickets = []; myHeldTickets = []; myBookedTickets = []; previewTicketNum = null
-  startTime = data.startTime || null
-  const now = Date.now()
-  console.log("gameStarted decision:", { markedNumbers: markedNumbers.length, startTime, gameLive: data.gameLive })
-  if(markedNumbers.length > 0){
-    console.log("→ goLive (numbers called)")
-    goLive()
-  } else if(data.gameLive){
-    console.log("→ goLive (gameLive flag)")
-    goLive()
-  } else if(startTime && now < startTime){
-    console.log("→ countdownScreen")
-    showScreen("countdownScreen")
-    buildTicketList("ticketListCd","ticketInfoCd")
-    startCountdown(startTime)
-  } else if(startTime && now >= startTime){
-    console.log("→ goLive (startTime passed)")
-    goLive()
-  } else {
-    console.log("→ bookingScreen")
-    showScreen("bookingScreen")
-    buildTicketList("ticketListPre","ticketInfoPre")
+  try {
+    console.log("gameStarted received:", JSON.stringify({
+      totalTickets: data.totalTickets,
+      sheetsLen: data.sheets ? data.sheets.length : null,
+      calledLen: data.calledNumbers ? data.calledNumbers.length : 0,
+      startTime: data.startTime,
+      gameLive: data.gameLive
+    }))
+
+    totalTickets = parseInt(data.totalTickets) || 0
+    if(!totalTickets){ console.log("no totalTickets, staying on wait"); showScreen("waitScreen"); return }
+
+    ticketSheets  = data.sheets || []
+    bookedTickets = data.bookedTickets || {}
+    onHoldTickets = data.onHoldTickets || {}
+    markedNumbers = data.calledNumbers || []
+    selectedTickets = []; myHeldTickets = []; myBookedTickets = []; previewTicketNum = null
+    startTime = data.startTime || null
+    const now = Date.now()
+
+    if(markedNumbers.length > 0){
+      console.log("→ goLive"); goLive()
+    } else if(data.gameLive){
+      console.log("→ goLive gameLive"); goLive()
+    } else if(startTime && now < startTime){
+      console.log("→ countdown")
+      showScreen("countdownScreen")
+      buildTicketList("ticketListCd","ticketInfoCd")
+      startCountdown(startTime)
+    } else if(startTime && now >= startTime){
+      console.log("→ goLive pastStart"); goLive()
+    } else {
+      console.log("→ bookingScreen")
+      showScreen("bookingScreen")
+      buildTicketList("ticketListPre","ticketInfoPre")
+    }
+  } catch(err){
+    console.error("gameStarted handler crashed:", err)
   }
 })
 
