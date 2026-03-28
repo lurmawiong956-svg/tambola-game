@@ -42,6 +42,7 @@ const GameSchema = new mongoose.Schema({
   _id:           { type: String, default: "gamestate" },
   started:       Boolean,
   totalTickets:  Number,
+  sheets:        { type: mongoose.Schema.Types.Mixed, default: [] },
   bookedTickets: { type: mongoose.Schema.Types.Mixed, default: {} },
   onHoldTickets: { type: mongoose.Schema.Types.Mixed, default: {} },
   calledNumbers: [Number],
@@ -264,6 +265,7 @@ async function saveState(){
   try {
     const toSave = {
       started: gameState.started, totalTickets: gameState.totalTickets,
+      sheets: gameState.sheets,
       bookedTickets: gameState.bookedTickets, onHoldTickets: gameState.onHoldTickets,
       calledNumbers: gameState.calledNumbers, startTime: gameState.startTime,
       activePrizes: gameState.activePrizes, globalClaimed: gameState.globalClaimed
@@ -292,7 +294,14 @@ async function loadState(){
     gameState.startTime     = saved.startTime
     gameState.activePrizes  = saved.activePrizes  || []
     gameState.globalClaimed = saved.globalClaimed || {}
-    gameState.sheets        = generateAllSheets(saved.totalTickets)
+    // Use saved sheets if available, otherwise regenerate as fallback
+    if(saved.sheets && saved.sheets.length > 0){
+      gameState.sheets = saved.sheets
+      console.log("✅ Sheets restored from DB:", gameState.sheets.length, "sheets")
+    } else {
+      gameState.sheets = generateAllSheets(saved.totalTickets)
+      console.log("⚠️ Sheets regenerated (not in DB):", gameState.sheets.length, "sheets")
+    }
     console.log("✅ State restored")
   } catch(e){ console.log("Load error:", e.message) }
 }
